@@ -11,12 +11,14 @@ cd outbox
 git checkout claude/setup-dev-environment-IYuJy
 
 # 2. Установить Python зависимости
-cd backend
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
-# 3. Запустить быстрый тест
-cd ..
+# 3. Запустить быстрый тест (из корня проекта outbox)
 python3 test_quick.py
+```
+
+**Важно:** Запускайте `test_quick.py` из корня проекта `outbox/`, не из папки `backend/`.
+
 ```
 
 **Что тестируется:**

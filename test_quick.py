@@ -3,13 +3,24 @@
 """
 import sys
 import os
+from pathlib import Path
+
+# Определяем корень проекта (где находится этот скрипт)
+PROJECT_ROOT = Path(__file__).parent.absolute()
+BACKEND_PATH = PROJECT_ROOT / "backend"
 
 # Добавляем путь к backend
-sys.path.insert(0, '/home/user/outbox/backend')
-os.chdir('/home/user/outbox')
+sys.path.insert(0, str(BACKEND_PATH))
+
+# Меняем рабочую директорию на корень проекта
+os.chdir(str(PROJECT_ROOT))
+
+print(f"[Info] Project root: {PROJECT_ROOT}")
+print(f"[Info] Backend path: {BACKEND_PATH}")
+print(f"[Info] Working directory: {os.getcwd()}\n")
 
 # Теперь импортируем
-from backend.app.services.kaiten_service import kaiten_service
+from app.services.kaiten_service import kaiten_service
 import asyncio
 
 async def test():
