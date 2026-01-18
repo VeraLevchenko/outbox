@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import IncomingFiles from './components/IncomingFiles';
 import OutgoingFiles from './components/OutgoingFiles';
 import CardsList from './components/CardsList';
+import Journal from './components/Journal';
 import Login from './components/Login';
 import { authApi } from './services/api';
 import './App.css';
@@ -102,11 +103,10 @@ function App() {
         selectedCardId={cardId}
       />
 
-      {/* Табы и контент (только если выбрана карточка) */}
-      {cardId ? (
-        <>
-          {/* Табы */}
-          <div className="tabs">
+      {/* Табы */}
+      <div className="tabs">
+        {cardId && (
+          <>
             <button
               className={`tab ${activeTab === 'incoming' ? 'active' : ''}`}
               onClick={() => setActiveTab('incoming')}
@@ -119,24 +119,36 @@ function App() {
             >
               📤 Исходящие
             </button>
-          </div>
+          </>
+        )}
+        <button
+          className={`tab ${activeTab === 'journal' ? 'active' : ''}`}
+          onClick={() => setActiveTab('journal')}
+        >
+          📋 Журнал
+        </button>
+      </div>
 
-          {/* Контент */}
-          <div className="content">
+      {/* Контент */}
+      <div className="content">
+        {activeTab === 'journal' ? (
+          <Journal />
+        ) : cardId ? (
+          <>
             {activeTab === 'incoming' && <IncomingFiles cardId={cardId} />}
             {activeTab === 'outgoing' && <OutgoingFiles cardId={cardId} />}
+          </>
+        ) : (
+          <div style={{
+            padding: '40px',
+            textAlign: 'center',
+            color: '#666',
+            fontSize: '16px'
+          }}>
+            Выберите карточку для просмотра файлов
           </div>
-        </>
-      ) : (
-        <div style={{
-          padding: '40px',
-          textAlign: 'center',
-          color: '#666',
-          fontSize: '16px'
-        }}>
-          Выберите карточку для просмотра файлов
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
