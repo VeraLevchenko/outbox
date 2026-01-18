@@ -6,7 +6,7 @@ router = APIRouter(prefix="/api/kaiten", tags=["kaiten"])
 
 
 @router.get("/cards")
-async def get_cards(role: str = "director") -> List[Dict]:
+async def get_cards(role: str = "director") -> Dict:
     """
     Получить карточки из Kaiten в зависимости от роли пользователя
 
@@ -14,7 +14,7 @@ async def get_cards(role: str = "director") -> List[Dict]:
         role: Роль пользователя ("director" или "head")
 
     Returns:
-        Список карточек из соответствующей колонки
+        Объект с полем cards содержащим список карточек
     """
     try:
         # Определяем колонку в зависимости от роли
@@ -28,7 +28,18 @@ async def get_cards(role: str = "director") -> List[Dict]:
         # Получаем карточки из Kaiten
         cards = await kaiten_service.get_cards_from_column(column_name)
 
-        return cards
+        # Форматируем карточки для frontend
+        formatted_cards = []
+        for card in cards:
+            formatted_cards.append({
+                "id": card.get("id"),
+                "title": card.get("title"),
+                "column": card.get("column_name"),
+                "incoming_no": card.get("properties", {}).get("id_228499"),
+                "created_at": card.get("created_at")
+            })
+
+        return {"cards": formatted_cards, "total": len(formatted_cards)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching cards: {str(e)}")
 
