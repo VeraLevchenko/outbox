@@ -1,6 +1,4 @@
-from __future__ import annotations
 from pydantic import BaseModel
-from typing import Optional
 
 
 class LoginRequest(BaseModel):
@@ -37,7 +35,7 @@ class TokenResponse(BaseModel):
     """Ответ с токеном доступа"""
     access_token: str
     token_type: str = "bearer"
-    user: Optional[UserResponse] = None
+    user: UserResponse | None = None
 
     class Config:
         json_schema_extra = {

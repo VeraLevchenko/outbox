@@ -1,15 +1,14 @@
 from pydantic import BaseModel
 from datetime import date
-from typing import Optional, List
 
 
 class JournalEntryCreate(BaseModel):
     """Схема для создания записи в журнале"""
     outgoing_no: int
     outgoing_date: date
-    to_whom: Optional[str] = None
-    executor: Optional[str] = None
-    folder_path: Optional[str] = None
+    to_whom: str | None = None
+    executor: str | None = None
+    folder_path: str | None = None
 
     class Config:
         json_schema_extra = {
@@ -28,9 +27,9 @@ class JournalEntryResponse(BaseModel):
     id: int
     outgoing_no: int
     outgoing_date: date
-    to_whom: Optional[str] = None
-    executor: Optional[str] = None
-    folder_path: Optional[str] = None
+    to_whom: str | None = None
+    executor: str | None = None
+    folder_path: str | None = None
     created_at: str
 
     class Config:
@@ -50,7 +49,7 @@ class JournalEntryResponse(BaseModel):
 
 class JournalListResponse(BaseModel):
     """Схема для списка записей журнала"""
-    entries: List[JournalEntryResponse]
+    entries: list[JournalEntryResponse]
     total: int
 
     class Config:
