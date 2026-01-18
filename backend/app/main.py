@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.api import kaiten
 
 app = FastAPI(
     title="Outbox API",
@@ -17,6 +18,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Подключаем роутеры
+app.include_router(kaiten.router)
 
 
 @app.get("/")
