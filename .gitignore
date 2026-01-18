@@ -11,6 +11,8 @@ ENV/
 
 # FastAPI
 .env
+backend/.env
+backend/users.json
 
 # IDEs
 .vscode/
