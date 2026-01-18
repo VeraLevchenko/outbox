@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import APIRouter, Depends, HTTPException, status, Form
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordRequestForm
 from datetime import timedelta
 from app.services.auth_service import auth_service
 from app.schemas.auth_schemas import LoginRequest, TokenResponse, UserResponse
@@ -46,20 +46,21 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(login_data: LoginRequest):
+async def login(username: str = Form(...), password: str = Form(...)):
     """
     Вход в систему
 
     Args:
-        login_data: Логин и пароль
+        username: Имя пользователя
+        password: Пароль
 
     Returns:
-        JWT токен доступа
+        JWT токен доступа + данные пользователя
 
     Raises:
         HTTPException: Если логин или пароль неверны
     """
-    user = auth_service.authenticate_user(login_data.username, login_data.password)
+    user = auth_service.authenticate_user(username, password)
 
     if not user:
         raise HTTPException(
@@ -75,7 +76,16 @@ async def login(login_data: LoginRequest):
         expires_delta=access_token_expires
     )
 
-    return TokenResponse(access_token=access_token, token_type="bearer")
+    # Возвращаем токен и данные пользователя
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse(
+            username=user['username'],
+            full_name=user['full_name'],
+            role=user['role']
+        )
+    )
 
 
 @router.get("/me", response_model=UserResponse)
