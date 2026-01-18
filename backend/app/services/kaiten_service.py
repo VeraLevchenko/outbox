@@ -202,66 +202,90 @@ class KaitenService:
 
         async with httpx.AsyncClient() as client:
             try:
-                # Kaiten API эндпоинт для получения карточек
-                # Убрали фильтр по lane_id - получаем все карточки доски
-                url = f"{self.api_url}/cards"
-                params = {
-                    "board_id": settings.KAITEN_BOARD_ID,
-                    "limit": 1000  # Увеличен лимит для получения всех карточек
-                }
+                # Получаем все карточки доски с пагинацией
+                all_cards = []
+                offset = 0
+                limit = 100  # Kaiten API возвращает максимум 100 карточек за запрос
 
-                logger.info(f"Making request to: {url} with params: {params}")
-                logger.debug(f"Headers: {self.headers}")
+                while True:
+                    url = f"{self.api_url}/cards"
+                    params = {
+                        "board_id": settings.KAITEN_BOARD_ID,
+                        "limit": limit,
+                        "offset": offset
+                    }
 
-                response = await client.get(
-                    url,
-                    headers=self.headers,
-                    params=params,
-                    timeout=30.0  # Увеличен таймаут для больших досок
-                )
+                    logger.info(f"Making request to: {url} with params: {params}")
 
-                logger.info(f"Response status: {response.status_code}")
+                    response = await client.get(
+                        url,
+                        headers=self.headers,
+                        params=params,
+                        timeout=30.0
+                    )
 
-                if response.status_code == 200:
-                    cards = response.json()
-                    logger.info(f"Received {len(cards)} total cards from API")
+                    logger.info(f"Response status: {response.status_code}")
 
-                    # Фильтруем карточки по column_id
-                    filtered_cards = []
-                    for card in cards:
-                        card_column_id = card.get("column_id")
-                        card_lane_id = card.get("lane_id")
+                    if response.status_code == 200:
+                        cards_batch = response.json()
+                        cards_count = len(cards_batch)
+                        logger.info(f"Received {cards_count} cards at offset {offset}")
 
-                        # Фильтруем по column_id И lane_id
-                        if card_column_id == column_id and card_lane_id == settings.KAITEN_LANE_ID:
-                            # Извлекаем properties для удобства
-                            incoming_no = self.get_incoming_no(card)
-                            incoming_date = self.get_incoming_date(card)
+                        if cards_count == 0:
+                            # Больше нет карточек
+                            break
 
-                            logger.debug(
-                                f"Card {card.get('id')}: {card.get('title')} - "
-                                f"incoming_no={incoming_no}, incoming_date={incoming_date}"
-                            )
+                        all_cards.extend(cards_batch)
 
-                            filtered_cards.append(card)
+                        # Если получили меньше чем limit, значит это последняя страница
+                        if cards_count < limit:
+                            break
 
-                    logger.info(f"Filtered to {len(filtered_cards)} cards in column_id={column_id}, lane_id={settings.KAITEN_LANE_ID}")
-                    return filtered_cards
+                        offset += limit
 
-                elif response.status_code == 401:
-                    logger.error("Kaiten API authentication failed - check your API token")
-                    logger.error(f"Response: {response.text}")
-                    return []
+                        # Защита от бесконечного цикла - максимум 10 страниц (1000 карточек)
+                        if offset >= 1000:
+                            logger.warning(f"Reached max offset limit (1000), stopping pagination")
+                            break
 
-                elif response.status_code == 403:
-                    logger.error("Kaiten API access forbidden - check permissions")
-                    logger.error(f"Response: {response.text}")
-                    return []
+                    elif response.status_code == 401:
+                        logger.error("Kaiten API authentication failed - check your API token")
+                        logger.error(f"Response: {response.text}")
+                        return []
 
-                else:
-                    logger.error(f"Kaiten API error: {response.status_code}")
-                    logger.error(f"Response text: {response.text}")
-                    return []
+                    elif response.status_code == 403:
+                        logger.error("Kaiten API access forbidden - check permissions")
+                        logger.error(f"Response: {response.text}")
+                        return []
+
+                    else:
+                        logger.error(f"Kaiten API error: {response.status_code}")
+                        logger.error(f"Response text: {response.text}")
+                        return []
+
+                logger.info(f"Total cards fetched: {len(all_cards)}")
+
+                # Фильтруем карточки по column_id и lane_id
+                filtered_cards = []
+                for card in all_cards:
+                    card_column_id = card.get("column_id")
+                    card_lane_id = card.get("lane_id")
+
+                    # Фильтруем по column_id И lane_id
+                    if card_column_id == column_id and card_lane_id == settings.KAITEN_LANE_ID:
+                        # Извлекаем properties для удобства
+                        incoming_no = self.get_incoming_no(card)
+                        incoming_date = self.get_incoming_date(card)
+
+                        logger.debug(
+                            f"Card {card.get('id')}: {card.get('title')} - "
+                            f"incoming_no={incoming_no}, incoming_date={incoming_date}"
+                        )
+
+                        filtered_cards.append(card)
+
+                logger.info(f"Filtered to {len(filtered_cards)} cards in column_id={column_id}, lane_id={settings.KAITEN_LANE_ID}")
+                return filtered_cards
 
             except httpx.TimeoutException as e:
                 logger.error(f"Timeout fetching cards from Kaiten: {e}")
