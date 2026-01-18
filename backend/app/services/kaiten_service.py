@@ -203,11 +203,11 @@ class KaitenService:
         async with httpx.AsyncClient() as client:
             try:
                 # Kaiten API эндпоинт для получения карточек
-                # Используем фильтр по board_id и lane_id для оптимизации
+                # Убрали фильтр по lane_id - получаем все карточки доски
                 url = f"{self.api_url}/cards"
                 params = {
                     "board_id": settings.KAITEN_BOARD_ID,
-                    "lane_id": settings.KAITEN_LANE_ID
+                    "limit": 1000  # Увеличен лимит для получения всех карточек
                 }
 
                 logger.info(f"Making request to: {url} with params: {params}")
@@ -230,7 +230,10 @@ class KaitenService:
                     filtered_cards = []
                     for card in cards:
                         card_column_id = card.get("column_id")
-                        if card_column_id == column_id:
+                        card_lane_id = card.get("lane_id")
+
+                        # Фильтруем по column_id И lane_id
+                        if card_column_id == column_id and card_lane_id == settings.KAITEN_LANE_ID:
                             # Извлекаем properties для удобства
                             incoming_no = self.get_incoming_no(card)
                             incoming_date = self.get_incoming_date(card)
@@ -242,7 +245,7 @@ class KaitenService:
 
                             filtered_cards.append(card)
 
-                    logger.info(f"Filtered to {len(filtered_cards)} cards in column_id={column_id}")
+                    logger.info(f"Filtered to {len(filtered_cards)} cards in column_id={column_id}, lane_id={settings.KAITEN_LANE_ID}")
                     return filtered_cards
 
                 elif response.status_code == 401:
