@@ -31,7 +31,7 @@ class KaitenService:
         logger.info(f"KaitenService initialized: API URL={self.api_url}, use_mock={self.use_mock}")
 
     @staticmethod
-    def extract_property_value(card: Dict, property_id: str) -> Optional[str]:
+    def extract_property_value(card: Dict, property_id: str) -> Optional[any]:
         """
         Извлечь значение свойства (custom field) из карточки
 
@@ -40,17 +40,25 @@ class KaitenService:
             property_id: ID свойства (например, "id_228499")
 
         Returns:
-            Значение свойства или None
+            Значение свойства или None (может быть строка, число или объект)
         """
-        properties = card.get("properties", [])
+        properties = card.get("properties", {})
 
-        # Properties может быть списком или словарем
+        # Properties в Kaiten API - это словарь
         if isinstance(properties, dict):
-            return properties.get(property_id)
+            value = properties.get(property_id)
+            # Если значение - объект с датой, извлекаем дату
+            if isinstance(value, dict) and "date" in value:
+                return value.get("date")
+            return value
         elif isinstance(properties, list):
+            # Старая структура (для совместимости)
             for prop in properties:
                 if prop.get("id") == property_id or prop.get("property_id") == property_id:
-                    return prop.get("value")
+                    value = prop.get("value")
+                    if isinstance(value, dict) and "date" in value:
+                        return value.get("date")
+                    return value
 
         return None
 
@@ -81,7 +89,7 @@ class KaitenService:
         return KaitenService.extract_property_value(card, settings.KAITEN_PROPERTY_INCOMING_DATE)
 
     def _get_mock_cards(self, column_id: int) -> List[Dict]:
-        """Генерировать mock-данные для тестирования"""
+        """Генерировать mock-данные для тестирования (соответствует реальной структуре Kaiten API)"""
         # Колонка "На подпись" для директора
         if column_id == settings.KAITEN_COLUMN_TO_SIGN_ID:
             return [
@@ -91,21 +99,31 @@ class KaitenService:
                     "column_id": settings.KAITEN_COLUMN_TO_SIGN_ID,
                     "board_id": settings.KAITEN_BOARD_ID,
                     "lane_id": settings.KAITEN_LANE_ID,
-                    "properties": [
+                    "properties": {
+                        settings.KAITEN_PROPERTY_INCOMING_NO: "12345",
+                        settings.KAITEN_PROPERTY_INCOMING_DATE: {
+                            "date": "2026-01-15",
+                            "time": None,
+                            "tzOffset": None
+                        }
+                    },
+                    "files": [
                         {
-                            "property_id": settings.KAITEN_PROPERTY_INCOMING_NO,
-                            "value": "12345"
+                            "id": 1,
+                            "name": "исх_письмо_минфин.docx",
+                            "url": "http://example.com/file1.docx",
+                            "size": 25000,
+                            "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         },
                         {
-                            "property_id": settings.KAITEN_PROPERTY_INCOMING_DATE,
-                            "value": "2026-01-15"
+                            "id": 2,
+                            "name": "приложение_1.pdf",
+                            "url": "http://example.com/file2.pdf",
+                            "size": 150000,
+                            "mime_type": "application/pdf"
                         }
                     ],
-                    "files": [
-                        {"name": "исх_письмо_минфин.docx", "url": "http://example.com/file1.docx"},
-                        {"name": "приложение_1.pdf", "url": "http://example.com/file2.pdf"}
-                    ],
-                    "created_at": datetime.now().isoformat()
+                    "created": datetime.now().isoformat()
                 },
                 {
                     "id": 1002,
@@ -113,20 +131,24 @@ class KaitenService:
                     "column_id": settings.KAITEN_COLUMN_TO_SIGN_ID,
                     "board_id": settings.KAITEN_BOARD_ID,
                     "lane_id": settings.KAITEN_LANE_ID,
-                    "properties": [
+                    "properties": {
+                        settings.KAITEN_PROPERTY_INCOMING_NO: "12346",
+                        settings.KAITEN_PROPERTY_INCOMING_DATE: {
+                            "date": "2026-01-16",
+                            "time": None,
+                            "tzOffset": None
+                        }
+                    },
+                    "files": [
                         {
-                            "property_id": settings.KAITEN_PROPERTY_INCOMING_NO,
-                            "value": "12346"
-                        },
-                        {
-                            "property_id": settings.KAITEN_PROPERTY_INCOMING_DATE,
-                            "value": "2026-01-16"
+                            "id": 3,
+                            "name": "исх_договор.docx",
+                            "url": "http://example.com/file3.docx",
+                            "size": 30000,
+                            "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         }
                     ],
-                    "files": [
-                        {"name": "исх_договор.docx", "url": "http://example.com/file3.docx"}
-                    ],
-                    "created_at": datetime.now().isoformat()
+                    "created": datetime.now().isoformat()
                 }
             ]
         # Колонка согласования начальника отдела
@@ -138,20 +160,24 @@ class KaitenService:
                     "column_id": settings.KAITEN_COLUMN_HEAD_REVIEW_ID,
                     "board_id": settings.KAITEN_BOARD_ID,
                     "lane_id": settings.KAITEN_LANE_ID,
-                    "properties": [
+                    "properties": {
+                        settings.KAITEN_PROPERTY_INCOMING_NO: "12347",
+                        settings.KAITEN_PROPERTY_INCOMING_DATE: {
+                            "date": "2026-01-17",
+                            "time": None,
+                            "tzOffset": None
+                        }
+                    },
+                    "files": [
                         {
-                            "property_id": settings.KAITEN_PROPERTY_INCOMING_NO,
-                            "value": "12347"
-                        },
-                        {
-                            "property_id": settings.KAITEN_PROPERTY_INCOMING_DATE,
-                            "value": "2026-01-17"
+                            "id": 4,
+                            "name": "исх_отчет.docx",
+                            "url": "http://example.com/file4.docx",
+                            "size": 28000,
+                            "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         }
                     ],
-                    "files": [
-                        {"name": "исх_отчет.docx", "url": "http://example.com/file4.docx"}
-                    ],
-                    "created_at": datetime.now().isoformat()
+                    "created": datetime.now().isoformat()
                 }
             ]
         return []
