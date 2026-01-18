@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     KAITEN_API_URL: str
     KAITEN_API_TOKEN: str
     KAITEN_POLL_INTERVAL: int = 5
+    KAITEN_USE_MOCK: bool = False  # Явно использовать mock данные вместо реального API
 
     # Application
     APP_HOST: str = "0.0.0.0"
