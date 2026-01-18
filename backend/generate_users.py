@@ -39,11 +39,21 @@ for user in users_list:
         "full_name": user['full_name']
     })
 
-# Сохраняем в файл
+# Сохраняем в файл users.json
 with open('users.json', 'w', encoding='utf-8') as f:
     json.dump(users_data, f, ensure_ascii=False, indent=2)
 
+# Сохраняем пароли в отдельный файл для справки
+with open('passwords.txt', 'w', encoding='utf-8') as f:
+    f.write("ПАРОЛИ ПОЛЬЗОВАТЕЛЕЙ (для справки)\n")
+    f.write("=" * 50 + "\n\n")
+    for user in users_list:
+        f.write(f"{user['username']}: {user['password']}\n")
+    f.write("\n" + "=" * 50 + "\n")
+    f.write("ВНИМАНИЕ: Храните этот файл в безопасности!\n")
+
 print("✓ Файл users.json успешно создан!")
+print("✓ Файл passwords.txt создан (для справки паролей)")
 print("\nСозданы пользователи:")
 print("┌─────────────┬──────────────────┬──────────┬────────────────┐")
 print("│ Логин       │ Имя              │ Роль     │ Пароль         │")
