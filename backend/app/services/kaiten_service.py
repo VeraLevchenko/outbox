@@ -1,6 +1,7 @@
 import asyncio
 import httpx
 from typing import List, Dict, Optional
+from datetime import datetime
 from app.core.config import settings
 
 
@@ -14,6 +15,54 @@ class KaitenService:
             "Authorization": f"Bearer {self.api_token}",
             "Content-Type": "application/json"
         }
+        self.use_mock = settings.DEBUG  # Использовать mock-данные в debug режиме
+
+    def _get_mock_cards(self, column_name: str) -> List[Dict]:
+        """Генерировать mock-данные для тестирования"""
+        if column_name == "На подпись":
+            return [
+                {
+                    "id": 1001,
+                    "title": "Письмо в Минфин о налоговых льготах",
+                    "column_name": "На подпись",
+                    "properties": {
+                        "id_228499": "12345"  # incoming_no
+                    },
+                    "files": [
+                        {"name": "исх_письмо_минфин.docx", "url": "http://example.com/file1.docx"},
+                        {"name": "приложение_1.pdf", "url": "http://example.com/file2.pdf"}
+                    ],
+                    "created_at": datetime.now().isoformat()
+                },
+                {
+                    "id": 1002,
+                    "title": "Договор на поставку оборудования",
+                    "column_name": "На подпись",
+                    "properties": {
+                        "id_228499": "12346"
+                    },
+                    "files": [
+                        {"name": "исх_договор.docx", "url": "http://example.com/file3.docx"}
+                    ],
+                    "created_at": datetime.now().isoformat()
+                }
+            ]
+        elif column_name == "Проект готов. Согласование начальника отдела":
+            return [
+                {
+                    "id": 2001,
+                    "title": "Отчет о проделанной работе",
+                    "column_name": "Проект готов. Согласование начальника отдела",
+                    "properties": {
+                        "id_228499": "12347"
+                    },
+                    "files": [
+                        {"name": "исх_отчет.docx", "url": "http://example.com/file4.docx"}
+                    ],
+                    "created_at": datetime.now().isoformat()
+                }
+            ]
+        return []
 
     async def get_cards_from_column(self, column_name: str) -> List[Dict]:
         """
@@ -25,10 +74,14 @@ class KaitenService:
         Returns:
             Список карточек
         """
+        # В debug режиме используем mock-данные
+        if self.use_mock:
+            print(f"[Mock] Returning mock cards for column: {column_name}")
+            return self._get_mock_cards(column_name)
+
+        # В продакшене используем настоящий Kaiten API
         async with httpx.AsyncClient() as client:
             try:
-                # TODO: Реализовать запрос к Kaiten API
-                # Пока возвращаем заглушку
                 response = await client.get(
                     f"{self.api_url}/cards",
                     headers=self.headers,
