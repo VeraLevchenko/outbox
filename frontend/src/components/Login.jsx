@@ -34,8 +34,14 @@ const Login = ({ onLoginSuccess }) => {
       console.error('Login error:', err);
       if (err.response?.status === 401) {
         setError('Неверное имя пользователя или пароль');
+      } else if (err.response?.status === 422) {
+        setError('Неверный формат данных. Проверьте логин и пароль');
+      } else if (err.code === 'ERR_NETWORK' || !err.response) {
+        setError('Ошибка подключения к серверу. Убедитесь, что backend запущен на порту 8000');
       } else {
-        setError('Ошибка входа: ' + (err.response?.data?.detail || err.message));
+        const detail = err.response?.data?.detail;
+        const message = typeof detail === 'string' ? detail : err.message;
+        setError('Ошибка входа: ' + message);
       }
     } finally {
       setLoading(false);
@@ -171,23 +177,6 @@ const Login = ({ onLoginSuccess }) => {
             {loading ? 'Вход...' : 'Войти'}
           </button>
         </form>
-
-        <div style={{
-          marginTop: '30px',
-          padding: '15px',
-          background: '#f9f9f9',
-          borderRadius: '5px',
-          fontSize: '12px',
-          color: '#666'
-        }}>
-          <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>Тестовые пользователи:</p>
-          <p style={{ margin: '5px 0' }}>
-            <strong>director</strong> / director123 (Директор)
-          </p>
-          <p style={{ margin: '5px 0' }}>
-            <strong>head_dept1</strong> / head123 (Начальник отдела)
-          </p>
-        </div>
       </div>
     </div>
   );
