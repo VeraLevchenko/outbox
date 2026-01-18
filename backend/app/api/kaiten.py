@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Optional
-from app.services.kaiten_service import kaiten_service
+from app.services.kaiten_service import kaiten_service, KaitenService
+from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,30 +21,48 @@ async def get_cards(role: str = "director") -> Dict:
         Объект с полем cards содержащим список карточек
     """
     try:
-        # Определяем колонку в зависимости от роли
-        if role == "director":
-            column_name = "На подпись"
-        elif role == "head":
-            column_name = "Проект готов. Согласование начальника отдела"
-        else:
-            raise HTTPException(status_code=400, detail="Invalid role")
+        logger.info(f"API: Getting cards for role={role}")
 
-        # Получаем карточки из Kaiten
-        cards = await kaiten_service.get_cards_from_column(column_name)
+        # Определяем ID колонки в зависимости от роли
+        if role == "director":
+            column_id = settings.KAITEN_COLUMN_TO_SIGN_ID
+            logger.info(f"Using column_id={column_id} for director (На подпись)")
+        elif role == "head":
+            column_id = settings.KAITEN_COLUMN_HEAD_REVIEW_ID
+            logger.info(f"Using column_id={column_id} for head (Согласование начальника отдела)")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid role. Use 'director' or 'head'")
+
+        # Получаем карточки из Kaiten по ID колонки
+        cards = await kaiten_service.get_cards_by_column_id(column_id)
+
+        logger.info(f"Retrieved {len(cards)} cards for role={role}")
 
         # Форматируем карточки для frontend
         formatted_cards = []
         for card in cards:
-            formatted_cards.append({
+            # Извлекаем свойства (custom fields)
+            incoming_no = KaitenService.get_incoming_no(card)
+            incoming_date = KaitenService.get_incoming_date(card)
+
+            formatted_card = {
                 "id": card.get("id"),
                 "title": card.get("title"),
-                "column": card.get("column_name"),
-                "incoming_no": card.get("properties", {}).get("id_228499"),
-                "created_at": card.get("created_at")
-            })
+                "column_id": card.get("column_id"),
+                "incoming_no": incoming_no,
+                "incoming_date": incoming_date,
+                "created_at": card.get("created_at"),
+                "files": card.get("files", [])
+            }
+
+            formatted_cards.append(formatted_card)
+            logger.debug(f"Formatted card: {formatted_card}")
 
         return {"cards": formatted_cards, "total": len(formatted_cards)}
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"API: Error fetching cards: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error fetching cards: {str(e)}")
 
 

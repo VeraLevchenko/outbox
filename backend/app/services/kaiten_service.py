@@ -30,17 +30,77 @@ class KaitenService:
 
         logger.info(f"KaitenService initialized: API URL={self.api_url}, use_mock={self.use_mock}")
 
-    def _get_mock_cards(self, column_name: str) -> List[Dict]:
+    @staticmethod
+    def extract_property_value(card: Dict, property_id: str) -> Optional[str]:
+        """
+        Извлечь значение свойства (custom field) из карточки
+
+        Args:
+            card: Карточка Kaiten
+            property_id: ID свойства (например, "id_228499")
+
+        Returns:
+            Значение свойства или None
+        """
+        properties = card.get("properties", [])
+
+        # Properties может быть списком или словарем
+        if isinstance(properties, dict):
+            return properties.get(property_id)
+        elif isinstance(properties, list):
+            for prop in properties:
+                if prop.get("id") == property_id or prop.get("property_id") == property_id:
+                    return prop.get("value")
+
+        return None
+
+    @staticmethod
+    def get_incoming_no(card: Dict) -> Optional[str]:
+        """
+        Получить номер входящего документа из карточки
+
+        Args:
+            card: Карточка Kaiten
+
+        Returns:
+            Номер входящего документа или None
+        """
+        return KaitenService.extract_property_value(card, settings.KAITEN_PROPERTY_INCOMING_NO)
+
+    @staticmethod
+    def get_incoming_date(card: Dict) -> Optional[str]:
+        """
+        Получить дату входящего документа из карточки
+
+        Args:
+            card: Карточка Kaiten
+
+        Returns:
+            Дата входящего документа или None
+        """
+        return KaitenService.extract_property_value(card, settings.KAITEN_PROPERTY_INCOMING_DATE)
+
+    def _get_mock_cards(self, column_id: int) -> List[Dict]:
         """Генерировать mock-данные для тестирования"""
-        if column_name == "На подпись":
+        # Колонка "На подпись" для директора
+        if column_id == settings.KAITEN_COLUMN_TO_SIGN_ID:
             return [
                 {
                     "id": 1001,
                     "title": "Письмо в Минфин о налоговых льготах",
-                    "column_name": "На подпись",
-                    "properties": {
-                        "id_228499": "12345"  # incoming_no
-                    },
+                    "column_id": settings.KAITEN_COLUMN_TO_SIGN_ID,
+                    "board_id": settings.KAITEN_BOARD_ID,
+                    "lane_id": settings.KAITEN_LANE_ID,
+                    "properties": [
+                        {
+                            "property_id": settings.KAITEN_PROPERTY_INCOMING_NO,
+                            "value": "12345"
+                        },
+                        {
+                            "property_id": settings.KAITEN_PROPERTY_INCOMING_DATE,
+                            "value": "2026-01-15"
+                        }
+                    ],
                     "files": [
                         {"name": "исх_письмо_минфин.docx", "url": "http://example.com/file1.docx"},
                         {"name": "приложение_1.pdf", "url": "http://example.com/file2.pdf"}
@@ -50,25 +110,44 @@ class KaitenService:
                 {
                     "id": 1002,
                     "title": "Договор на поставку оборудования",
-                    "column_name": "На подпись",
-                    "properties": {
-                        "id_228499": "12346"
-                    },
+                    "column_id": settings.KAITEN_COLUMN_TO_SIGN_ID,
+                    "board_id": settings.KAITEN_BOARD_ID,
+                    "lane_id": settings.KAITEN_LANE_ID,
+                    "properties": [
+                        {
+                            "property_id": settings.KAITEN_PROPERTY_INCOMING_NO,
+                            "value": "12346"
+                        },
+                        {
+                            "property_id": settings.KAITEN_PROPERTY_INCOMING_DATE,
+                            "value": "2026-01-16"
+                        }
+                    ],
                     "files": [
                         {"name": "исх_договор.docx", "url": "http://example.com/file3.docx"}
                     ],
                     "created_at": datetime.now().isoformat()
                 }
             ]
-        elif column_name == "Проект готов. Согласование начальника отдела":
+        # Колонка согласования начальника отдела
+        elif column_id == settings.KAITEN_COLUMN_HEAD_REVIEW_ID:
             return [
                 {
                     "id": 2001,
                     "title": "Отчет о проделанной работе",
-                    "column_name": "Проект готов. Согласование начальника отдела",
-                    "properties": {
-                        "id_228499": "12347"
-                    },
+                    "column_id": settings.KAITEN_COLUMN_HEAD_REVIEW_ID,
+                    "board_id": settings.KAITEN_BOARD_ID,
+                    "lane_id": settings.KAITEN_LANE_ID,
+                    "properties": [
+                        {
+                            "property_id": settings.KAITEN_PROPERTY_INCOMING_NO,
+                            "value": "12347"
+                        },
+                        {
+                            "property_id": settings.KAITEN_PROPERTY_INCOMING_DATE,
+                            "value": "2026-01-17"
+                        }
+                    ],
                     "files": [
                         {"name": "исх_отчет.docx", "url": "http://example.com/file4.docx"}
                     ],
@@ -77,35 +156,41 @@ class KaitenService:
             ]
         return []
 
-    async def get_cards_from_column(self, column_name: str) -> List[Dict]:
+    async def get_cards_by_column_id(self, column_id: int) -> List[Dict]:
         """
-        Получить карточки из указанной колонки
+        Получить карточки из указанной колонки по ID
 
         Args:
-            column_name: Название колонки ("На подпись" или "Проект готов. Согласование начальника отдела")
+            column_id: ID колонки в Kaiten
 
         Returns:
-            Список карточек
+            Список карточек с извлеченными свойствами
         """
         # В mock режиме используем тестовые данные
         if self.use_mock:
-            logger.info(f"[Mock] Returning mock cards for column: {column_name}")
-            return self._get_mock_cards(column_name)
+            logger.info(f"[Mock] Returning mock cards for column_id: {column_id}")
+            return self._get_mock_cards(column_id)
 
         # Работа с настоящим Kaiten API
-        logger.info(f"Fetching cards from Kaiten API for column: {column_name}")
+        logger.info(f"Fetching cards from Kaiten API for column_id: {column_id}")
 
         async with httpx.AsyncClient() as client:
             try:
                 # Kaiten API эндпоинт для получения карточек
+                # Используем фильтр по board_id и lane_id для оптимизации
                 url = f"{self.api_url}/cards"
+                params = {
+                    "board_id": settings.KAITEN_BOARD_ID,
+                    "lane_id": settings.KAITEN_LANE_ID
+                }
 
-                logger.info(f"Making request to: {url}")
+                logger.info(f"Making request to: {url} with params: {params}")
                 logger.debug(f"Headers: {self.headers}")
 
                 response = await client.get(
                     url,
                     headers=self.headers,
+                    params=params,
                     timeout=30.0  # Увеличен таймаут для больших досок
                 )
 
@@ -115,16 +200,23 @@ class KaitenService:
                     cards = response.json()
                     logger.info(f"Received {len(cards)} total cards from API")
 
-                    # Фильтруем карточки по названию колонки
-                    # Kaiten может возвращать column_name или column_title
+                    # Фильтруем карточки по column_id
                     filtered_cards = []
                     for card in cards:
-                        card_column = card.get("column_name") or card.get("column", {}).get("name")
-                        if card_column == column_name:
-                            filtered_cards.append(card)
-                            logger.debug(f"Card {card.get('id')}: {card.get('title')} - matched column")
+                        card_column_id = card.get("column_id")
+                        if card_column_id == column_id:
+                            # Извлекаем properties для удобства
+                            incoming_no = self.get_incoming_no(card)
+                            incoming_date = self.get_incoming_date(card)
 
-                    logger.info(f"Filtered to {len(filtered_cards)} cards in column '{column_name}'")
+                            logger.debug(
+                                f"Card {card.get('id')}: {card.get('title')} - "
+                                f"incoming_no={incoming_no}, incoming_date={incoming_date}"
+                            )
+
+                            filtered_cards.append(card)
+
+                    logger.info(f"Filtered to {len(filtered_cards)} cards in column_id={column_id}")
                     return filtered_cards
 
                 elif response.status_code == 401:
@@ -152,6 +244,34 @@ class KaitenService:
             except Exception as e:
                 logger.error(f"Unexpected error fetching cards from Kaiten: {e}", exc_info=True)
                 return []
+
+    async def get_cards_from_column(self, column_name: str) -> List[Dict]:
+        """
+        Получить карточки из указанной колонки по названию (устаревший метод)
+
+        DEPRECATED: Используйте get_cards_by_column_id() вместо этого метода
+
+        Args:
+            column_name: Название колонки
+
+        Returns:
+            Список карточек
+        """
+        logger.warning("get_cards_from_column is deprecated, use get_cards_by_column_id instead")
+
+        # Маппинг названий на ID колонок
+        column_mapping = {
+            "На подпись": settings.KAITEN_COLUMN_TO_SIGN_ID,
+            "Проект готов. Согласование начальника отдела": settings.KAITEN_COLUMN_HEAD_REVIEW_ID,
+            "Готово": settings.KAITEN_COLUMN_OUTBOX_ID
+        }
+
+        column_id = column_mapping.get(column_name)
+        if column_id:
+            return await self.get_cards_by_column_id(column_id)
+        else:
+            logger.error(f"Unknown column name: {column_name}")
+            return []
 
     async def move_card(self, card_id: int, target_column_id: int, comment: Optional[str] = None) -> bool:
         """
