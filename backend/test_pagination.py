@@ -154,6 +154,26 @@ async def test_pagination():
 
         print()
         print("=" * 80)
+        print("ПОЛНЫЙ СПИСОК ВСЕХ КАРТОЧЕК:")
+        print("=" * 80)
+        print()
+
+        # Сортируем по column_id для удобства
+        sorted_cards = sorted(all_cards, key=lambda x: (x.get("column_id", 0), x.get("id", 0)))
+
+        for i, card in enumerate(sorted_cards, 1):
+            card_id = card.get("id")
+            title = card.get("title", "Без названия")[:60]
+            column_id = card.get("column_id")
+            lane_id = card.get("lane_id")
+            created = card.get("created", "")[:10]  # Только дата
+
+            column_name = column_names.get(column_id, "Неизвестная")
+
+            print(f"{i:3}. ID: {card_id:8} | Column: {column_id} ({column_name[:30]:30}) | Lane: {lane_id} | {title}")
+
+        print()
+        print("=" * 80)
         print("✓ ПАГИНАЦИЯ РАБОТАЕТ КОРРЕКТНО" if total > 0 else "⚠ НЕТ КАРТОЧЕК")
         print("=" * 80)
 
