@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 
 
 class JournalEntryCreate(BaseModel):
@@ -50,7 +50,7 @@ class JournalEntryResponse(BaseModel):
 
 class JournalListResponse(BaseModel):
     """Схема для списка записей журнала"""
-    entries: list[JournalEntryResponse]
+    entries: List[JournalEntryResponse]
     total: int
 
     class Config:
