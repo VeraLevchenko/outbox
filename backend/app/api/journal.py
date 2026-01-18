@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from datetime import date
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.database import SessionLocal
 from app.models.outbox_journal import OutboxJournal
@@ -54,11 +55,11 @@ async def get_journal_entries(
         # Фильтры
         if year:
             query = query.filter(
-                db.func.extract('year', OutboxJournal.outgoing_date) == year
+                func.extract('year', OutboxJournal.outgoing_date) == year
             )
         if month:
             query = query.filter(
-                db.func.extract('month', OutboxJournal.outgoing_date) == month
+                func.extract('month', OutboxJournal.outgoing_date) == month
             )
 
         # Общее количество
@@ -165,7 +166,7 @@ async def get_next_outgoing_number(
     """
     try:
         # Получаем максимальный номер
-        max_no = db.query(db.func.max(OutboxJournal.outgoing_no)).scalar()
+        max_no = db.query(func.max(OutboxJournal.outgoing_no)).scalar()
 
         next_no = (max_no or 0) + 1
 
@@ -200,11 +201,11 @@ async def export_journal_to_xlsx(
         # Фильтры
         if year:
             query = query.filter(
-                db.func.extract('year', OutboxJournal.outgoing_date) == year
+                func.extract('year', OutboxJournal.outgoing_date) == year
             )
         if month:
             query = query.filter(
-                db.func.extract('month', OutboxJournal.outgoing_date) == month
+                func.extract('month', OutboxJournal.outgoing_date) == month
             )
 
         # Получаем записи

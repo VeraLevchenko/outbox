@@ -82,7 +82,7 @@ async def login(username: str = Form(...), password: str = Form(...)):
         token_type="bearer",
         user=UserResponse(
             username=user['username'],
-            full_name=user['full_name'],
+            full_name=user.get('full_name', user['username']),
             role=user['role']
         )
     )

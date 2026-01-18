@@ -18,7 +18,7 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     """Информация о пользователе"""
     username: str
-    full_name: str
+    full_name: str | None = None
     role: str
 
     class Config:
