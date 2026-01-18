@@ -102,8 +102,33 @@ async def test_pagination():
         print("=" * 80)
         print()
 
-        total = len(all_cards)
-        print(f"📊 Всего получено карточек: {total}")
+        total_returned = len(all_cards)
+
+        # Проверка на дубликаты
+        card_ids = [card.get("id") for card in all_cards]
+        unique_ids = len(set(card_ids))
+
+        print(f"📊 Всего получено карточек (total_returned): {total_returned}")
+        print(f"🔑 Уникальных card_id (unique_ids): {unique_ids}")
+
+        if total_returned != unique_ids:
+            print(f"⚠️  НАЙДЕНЫ ДУБЛИКАТЫ: {total_returned - unique_ids} карточек повторяются!")
+            print()
+
+            # Находим дубликаты
+            from collections import Counter
+            duplicates = {card_id: count for card_id, count in Counter(card_ids).items() if count > 1}
+
+            print("Список дубликатов:")
+            for card_id, count in duplicates.items():
+                duplicate_cards = [c for c in all_cards if c.get("id") == card_id]
+                print(f"  ID {card_id}: встречается {count} раз(а)")
+                for i, card in enumerate(duplicate_cards, 1):
+                    print(f"    {i}. Title: {card.get('title', 'Без названия')[:50]}")
+                    print(f"       Column: {card.get('column_id')}, Lane: {card.get('lane_id')}")
+        else:
+            print(f"✓ Дубликатов нет - все карточки уникальные")
+
         print()
 
         # Распределение по колонкам
