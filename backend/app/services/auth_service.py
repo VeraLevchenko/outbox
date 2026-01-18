@@ -1,13 +1,10 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 import json
 from pathlib import Path
 from app.core.config import settings
-
-# Контекст для хеширования паролей
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Путь к файлу пользователей
 USERS_FILE = Path(__file__).parent.parent.parent / "users.json"
@@ -35,11 +32,11 @@ class AuthService:
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Проверить пароль"""
-        return pwd_context.verify(plain_password, hashed_password)
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
     def get_password_hash(self, password: str) -> str:
         """Получить хеш пароля"""
-        return pwd_context.hash(password)
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     def authenticate_user(self, username: str, password: str) -> Optional[Dict]:
         """
