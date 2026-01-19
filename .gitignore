@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# FastAPI
+.env
+backend/.env
+backend/users.json
+backend/passwords.txt
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Node (для frontend в будущем)
+node_modules/
+dist/
+build/
