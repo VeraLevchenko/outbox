@@ -2,33 +2,13 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict
 from jose import JWTError, jwt
 import bcrypt
-import json
-from pathlib import Path
 from app.core.config import settings
-
-# Путь к файлу пользователей
-USERS_FILE = Path(__file__).parent.parent.parent / "users.json"
+from app.models.database import SessionLocal
+from app.models.user import User
 
 
 class AuthService:
     """Сервис для авторизации и работы с JWT токенами"""
-
-    def __init__(self):
-        self.users = self._load_users()
-
-    def _load_users(self) -> Dict:
-        """Загрузить пользователей из JSON файла"""
-        try:
-            if USERS_FILE.exists():
-                with open(USERS_FILE, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    return {user['username']: user for user in data.get('users', [])}
-            else:
-                print(f"[Warning] Users file not found: {USERS_FILE}")
-                return {}
-        except Exception as e:
-            print(f"[Error] Failed to load users: {e}")
-            return {}
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Проверить пароль"""
@@ -49,14 +29,29 @@ class AuthService:
         Returns:
             Данные пользователя или None
         """
-        user = self.users.get(username)
-        if not user:
-            return None
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.username == username).first()
+            if not user:
+                print(f"[Auth] User '{username}' not found in database")
+                return None
 
-        if not self.verify_password(password, user['password_hash']):
-            return None
+            if not self.verify_password(password, user.hashed_password):
+                print(f"[Auth] Invalid password for user '{username}'")
+                return None
 
-        return user
+            print(f"[Auth] User '{username}' authenticated successfully")
+            return {
+                'id': user.id,
+                'username': user.username,
+                'role': user.role,
+                'full_name': user.username  # Можно расширить модель User с полем full_name
+            }
+        except Exception as e:
+            print(f"[Auth] Error during authentication: {e}")
+            return None
+        finally:
+            db.close()
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
         """
@@ -99,7 +94,20 @@ class AuthService:
 
     def get_user_by_username(self, username: str) -> Optional[Dict]:
         """Получить пользователя по username"""
-        return self.users.get(username)
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.username == username).first()
+            if not user:
+                return None
+
+            return {
+                'id': user.id,
+                'username': user.username,
+                'role': user.role,
+                'full_name': user.username
+            }
+        finally:
+            db.close()
 
 
 # Singleton instance

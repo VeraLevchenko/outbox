@@ -1,80 +1,69 @@
-#!/usr/bin/env python3
 """
-Скрипт для генерации users.json на основе passwords.txt
-Читает пароли из passwords.txt и создаёт users.json с хешированными паролями
+Скрипт для создания тестовых пользователей в БД
+Запуск: python generate_users.py
 """
-import json
-import bcrypt
-from pathlib import Path
-
-# Путь к файлу с паролями
-PASSWORDS_FILE = Path(__file__).parent / "passwords.txt"
+from app.models.database import SessionLocal
+from app.models.user import User
+from app.services.auth_service import auth_service
 
 
-def parse_passwords_file():
-    """Читает файл passwords.txt и парсит пользователей"""
-    users = []
+def create_users():
+    """Создать тестовых пользователей"""
+    db = SessionLocal()
 
-    if not PASSWORDS_FILE.exists():
-        print(f"[Error] Файл {PASSWORDS_FILE} не найден!")
-        return users
+    try:
+        # Проверяем существующих пользователей
+        existing_users = db.query(User).all()
+        print(f"Found {len(existing_users)} existing users:")
+        for user in existing_users:
+            print(f"  - {user.username} (role: {user.role})")
 
-    with open(PASSWORDS_FILE, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            # Пропускаем пустые строки и комментарии
-            if not line or line.startswith('#') or line.startswith('=') or line.startswith('ПАРОЛИ') or line.startswith('ВНИМАНИЕ') or line.startswith('Для обновления'):
+        # Создаем пользователей если их нет
+        users_to_create = [
+            {
+                'username': 'director',
+                'password': 'director123',
+                'role': 'director'
+            },
+            {
+                'username': 'head',
+                'password': 'head123',
+                'role': 'head'
+            }
+        ]
+
+        for user_data in users_to_create:
+            # Проверяем есть ли уже такой пользователь
+            existing = db.query(User).filter(User.username == user_data['username']).first()
+            if existing:
+                print(f"\nUser '{user_data['username']}' already exists. Skipping.")
                 continue
 
-            # Парсим строку формата: username:password:role:full_name
-            parts = line.split(':')
-            if len(parts) == 4:
-                users.append({
-                    'username': parts[0].strip(),
-                    'password': parts[1].strip(),
-                    'role': parts[2].strip(),
-                    'full_name': parts[3].strip()
-                })
+            # Создаем нового пользователя
+            hashed_password = auth_service.get_password_hash(user_data['password'])
+            new_user = User(
+                username=user_data['username'],
+                hashed_password=hashed_password,
+                role=user_data['role']
+            )
+            db.add(new_user)
+            print(f"\nCreated user '{user_data['username']}' with password '{user_data['password']}'")
 
-    return users
+        db.commit()
+        print("\n✅ Users created successfully!")
 
+        # Показываем всех пользователей
+        all_users = db.query(User).all()
+        print(f"\nTotal users in database: {len(all_users)}")
+        for user in all_users:
+            print(f"  - {user.username} (role: {user.role})")
 
-def generate_users_json():
-    """Генерирует users.json с хешированными паролями"""
-
-    # Читаем пользователей из passwords.txt
-    users_list = parse_passwords_file()
-
-    if not users_list:
-        print("[Error] Не удалось прочитать пользователей из passwords.txt")
-        return
-
-    # Создаем хеши паролей для каждого пользователя
-    users_data = {"users": []}
-
-    for user in users_list:
-        password_hash = bcrypt.hashpw(user['password'].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        users_data["users"].append({
-            "username": user['username'],
-            "password_hash": password_hash,
-            "role": user['role'],
-            "full_name": user['full_name']
-        })
-
-    # Сохраняем в файл users.json
-    with open('users.json', 'w', encoding='utf-8') as f:
-        json.dump(users_data, f, ensure_ascii=False, indent=2)
-
-    # Выводим результат
-    print("✓ Файл users.json успешно создан на основе passwords.txt!")
-    print("\nСозданы пользователи:")
-    print("┌─────────────┬──────────────────┬──────────┬────────────────┐")
-    print("│ Логин       │ Имя              │ Роль     │ Пароль         │")
-    print("├─────────────┼──────────────────┼──────────┼────────────────┤")
-    for user in users_list:
-        print(f"│ {user['username']:<11} │ {user['full_name']:<16} │ {user['role']:<8} │ {user['password']:<14} │")
-    print("└─────────────┴──────────────────┴──────────┴────────────────┘")
+    except Exception as e:
+        print(f"❌ Error creating users: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
-    generate_users_json()
+    create_users()
