@@ -60,22 +60,14 @@ async def get_outgoing_files(card_id: int):
         Главный DOCX файл и приложения
     """
     try:
-        # Получить файлы карточки из Kaiten
-        # Для mock-данных используем заглушки
-        card_files = []
-        if card_id == 1001:
-            card_files = [
-                {"name": "исх_письмо_минфин.docx", "url": "http://example.com/file1.docx"},
-                {"name": "приложение_1.pdf", "url": "http://example.com/file2.pdf"}
-            ]
-        elif card_id == 1002:
-            card_files = [
-                {"name": "исх_договор.docx", "url": "http://example.com/file3.docx"}
-            ]
-        elif card_id == 2001:
-            card_files = [
-                {"name": "исх_отчет.docx", "url": "http://example.com/file4.docx"}
-            ]
+        # Получить карточку по ID из Kaiten API
+        card = await kaiten_service.get_card_by_id(card_id)
+
+        if not card:
+            raise HTTPException(status_code=404, detail=f"Card {card_id} not found")
+
+        # Получаем файлы из карточки
+        card_files = card.get("files", [])
 
         # Получить структурированные файлы
         files_data = file_service.get_outgoing_files(card_id, card_files)
@@ -91,6 +83,8 @@ async def get_outgoing_files(card_id: int):
             attachments=files_data["attachments"],
             total_files=total
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching outgoing files: {str(e)}")
 

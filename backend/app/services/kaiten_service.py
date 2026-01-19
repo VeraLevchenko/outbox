@@ -298,6 +298,53 @@ class KaitenService:
                 logger.error(f"Unexpected error fetching cards from Kaiten: {e}", exc_info=True)
                 return []
 
+    async def get_card_by_id(self, card_id: int) -> Optional[Dict]:
+        """
+        Получить карточку по ID из Kaiten API
+
+        Args:
+            card_id: ID карточки
+
+        Returns:
+            Карточка или None если не найдена
+        """
+        logger.info(f"Fetching card {card_id} from Kaiten API")
+
+        async with httpx.AsyncClient() as client:
+            try:
+                url = f"{self.api_url}/cards/{card_id}"
+                logger.debug(f"Making request to: {url}")
+
+                response = await client.get(
+                    url,
+                    headers=self.headers,
+                    timeout=10.0
+                )
+
+                logger.info(f"Response status: {response.status_code}")
+
+                if response.status_code == 200:
+                    card = response.json()
+                    logger.info(f"Successfully fetched card {card_id}: {card.get('title')}")
+                    return card
+                elif response.status_code == 404:
+                    logger.warning(f"Card {card_id} not found")
+                    return None
+                else:
+                    logger.error(f"Error fetching card {card_id}: {response.status_code}")
+                    logger.error(f"Response: {response.text}")
+                    return None
+
+            except httpx.TimeoutException as e:
+                logger.error(f"Timeout fetching card {card_id}: {e}")
+                return None
+            except httpx.ConnectError as e:
+                logger.error(f"Connection error fetching card {card_id}: {e}")
+                return None
+            except Exception as e:
+                logger.error(f"Unexpected error fetching card {card_id}: {e}", exc_info=True)
+                return None
+
     async def get_cards_from_column(self, column_name: str) -> List[Dict]:
         """
         Получить карточки из указанной колонки по названию (устаревший метод)

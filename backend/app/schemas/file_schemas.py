@@ -6,7 +6,7 @@ class FileInfo(BaseModel):
     """Информация о файле"""
     name: str
     path: str
-    size: int
+    size: Optional[int] = None
     type: str
     is_main: bool = False
 
