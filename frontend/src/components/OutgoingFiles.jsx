@@ -38,73 +38,87 @@ const OutgoingFiles = ({ cardId }) => {
   };
 
   if (loading) {
-    return <div style={{ padding: '20px' }}>Загрузка исходящих файлов...</div>;
+    return <div style={{ padding: '32px', textAlign: 'center', color: '#6b7280', fontSize: '15px' }}>
+      Загрузка исходящих файлов...
+    </div>;
   }
 
   if (error) {
-    return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
+    return <div style={{ padding: '32px', color: '#ef4444', background: '#fef2f2', borderRadius: '8px', margin: '16px', fontSize: '14px' }}>
+      {error}
+    </div>;
   }
 
   const allFiles = mainDocx ? [mainDocx, ...attachments] : attachments;
 
   if (allFiles.length === 0) {
-    return <div style={{ padding: '20px' }}>Нет исходящих файлов</div>;
+    return <div style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '15px' }}>
+      Нет исходящих файлов
+    </div>;
   }
 
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       {/* Список файлов слева */}
       <div style={{
-        width: '250px',
-        borderRight: '1px solid #ddd',
-        background: '#f9f9f9',
-        overflowY: 'auto'
+        width: '280px',
+        borderRight: '1px solid #e5e7eb',
+        background: '#f9fafb',
+        overflowY: 'auto',
+        boxShadow: '2px 0 8px rgba(0,0,0,0.04)'
       }}>
         <div style={{
-          padding: '10px',
-          background: '#2196F3',
+          padding: '16px 20px',
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
           color: 'white',
-          fontWeight: 'bold'
+          fontWeight: '700',
+          fontSize: '15px',
+          letterSpacing: '0.3px'
         }}>
-          Исходящие файлы ({allFiles.length})
+          📤 Исходящие файлы ({allFiles.length})
         </div>
 
         {/* Главный DOCX */}
         {mainDocx && (
           <>
             <div style={{
-              padding: '8px 12px',
-              background: '#fff3cd',
+              padding: '10px 16px',
+              background: '#fef3c7',
               fontSize: '12px',
-              fontWeight: 'bold',
-              color: '#856404'
+              fontWeight: '700',
+              color: '#92400e',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase'
             }}>
-              Главный документ
+              ⭐ Главный документ
             </div>
             <div
               onClick={() => setSelectedFile(mainDocx)}
               style={{
-                padding: '12px',
+                padding: '16px',
                 cursor: 'pointer',
-                borderBottom: '1px solid #eee',
-                background: selectedFile === mainDocx ? '#e3f2fd' : 'white',
-                transition: 'background 0.2s'
+                borderBottom: '1px solid #f3f4f6',
+                background: selectedFile === mainDocx ? '#ede9fe' : 'white',
+                transition: 'all 0.2s ease',
+                borderLeft: selectedFile === mainDocx ? '3px solid #8b5cf6' : '3px solid transparent'
               }}
               onMouseEnter={(e) => {
                 if (selectedFile !== mainDocx) {
-                  e.target.style.background = '#f5f5f5';
+                  e.currentTarget.style.background = '#fafafa';
+                  e.currentTarget.style.borderLeft = '3px solid #e5e7eb';
                 }
               }}
               onMouseLeave={(e) => {
                 if (selectedFile !== mainDocx) {
-                  e.target.style.background = 'white';
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.borderLeft = '3px solid transparent';
                 }
               }}
             >
-              <div style={{ fontWeight: selectedFile === mainDocx ? 'bold' : 'normal' }}>
+              <div style={{ fontWeight: selectedFile === mainDocx ? '700' : '500', fontSize: '14px', color: '#111827', marginBottom: '6px' }}>
                 {mainDocx.name}
               </div>
-              <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+              <div style={{ fontSize: '12px', color: '#9ca3af' }}>
                 {(mainDocx.size / 1024).toFixed(1)} KB
               </div>
             </div>
@@ -115,40 +129,46 @@ const OutgoingFiles = ({ cardId }) => {
         {attachments.length > 0 && (
           <>
             <div style={{
-              padding: '8px 12px',
-              background: '#e8f5e9',
+              padding: '10px 16px',
+              background: '#d1fae5',
               fontSize: '12px',
-              fontWeight: 'bold',
-              color: '#2e7d32'
+              fontWeight: '700',
+              color: '#065f46',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              marginTop: '8px'
             }}>
-              Приложения ({attachments.length})
+              📎 Приложения ({attachments.length})
             </div>
             {attachments.map((file, index) => (
               <div
                 key={index}
                 onClick={() => setSelectedFile(file)}
                 style={{
-                  padding: '12px',
+                  padding: '16px',
                   cursor: 'pointer',
-                  borderBottom: '1px solid #eee',
-                  background: selectedFile === file ? '#e3f2fd' : 'white',
-                  transition: 'background 0.2s'
+                  borderBottom: '1px solid #f3f4f6',
+                  background: selectedFile === file ? '#ede9fe' : 'white',
+                  transition: 'all 0.2s ease',
+                  borderLeft: selectedFile === file ? '3px solid #8b5cf6' : '3px solid transparent'
                 }}
                 onMouseEnter={(e) => {
                   if (selectedFile !== file) {
-                    e.target.style.background = '#f5f5f5';
+                    e.currentTarget.style.background = '#fafafa';
+                    e.currentTarget.style.borderLeft = '3px solid #e5e7eb';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (selectedFile !== file) {
-                    e.target.style.background = 'white';
+                    e.currentTarget.style.background = 'white';
+                    e.currentTarget.style.borderLeft = '3px solid transparent';
                   }
                 }}
               >
-                <div style={{ fontWeight: selectedFile === file ? 'bold' : 'normal' }}>
+                <div style={{ fontWeight: selectedFile === file ? '700' : '500', fontSize: '14px', color: '#111827', marginBottom: '6px' }}>
                   {file.name}
                 </div>
-                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                <div style={{ fontSize: '12px', color: '#9ca3af' }}>
                   {(file.size / 1024).toFixed(1)} KB
                 </div>
               </div>
