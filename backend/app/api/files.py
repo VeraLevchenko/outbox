@@ -74,7 +74,7 @@ async def get_outgoing_files(card_id: int):
             {
                 "name": file.get("name"),
                 "url": file.get("url"),
-                "size": file.get("size")
+                "size": file.get("size") or 0  # Если size=None, используем 0
             }
             for file in card_files
             if not file.get("deleted", False)  # Исключить удаленные файлы

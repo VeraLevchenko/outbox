@@ -142,7 +142,7 @@ class FileService:
                 main_docx = {
                     "name": file_name,
                     "path": file_info.get("url", ""),
-                    "size": file_info.get("size", 0),
+                    "size": file_info.get("size") or 0,  # Если size=None, используем 0
                     "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     "is_main": True
                 }
@@ -150,7 +150,7 @@ class FileService:
                 attachments.append({
                     "name": file_name,
                     "path": file_info.get("url", ""),
-                    "size": file_info.get("size", 0),
+                    "size": file_info.get("size") or 0,  # Если size=None, используем 0
                     "type": self._get_mime_type(Path(file_name).suffix),
                     "is_main": False
                 })
