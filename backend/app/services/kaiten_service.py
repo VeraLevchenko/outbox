@@ -163,6 +163,35 @@ class KaitenService:
                 print(f"Error moving card {card_id}: {e}")
                 return False
 
+    async def get_card_by_id(self, card_id: int) -> Optional[Dict]:
+        """
+        Получить одну карточку по ID
+
+        Args:
+            card_id: ID карточки
+
+        Returns:
+            Данные карточки или None если не найдена
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.api_url}/cards/{card_id}",
+                    headers=self.headers,
+                    timeout=10.0
+                )
+
+                if response.status_code == 200:
+                    card = response.json()
+                    print(f"[Kaiten API] Found card {card_id}: {card.get('title')}")
+                    return card
+                else:
+                    print(f"[Kaiten API] Card {card_id} not found: {response.status_code}")
+                    return None
+            except Exception as e:
+                print(f"Error fetching card {card_id}: {e}")
+                return None
+
     async def poll_cards(self, column_name: str, interval: int = None):
         """
         Polling карточек из колонки

@@ -25,16 +25,15 @@ async def get_incoming_files(card_id: int):
         Список входящих файлов с метаданными
     """
     try:
-        # Получить карточку из Kaiten чтобы узнать incoming_no
-        # Для упрощения используем mock-данные
-        if card_id == 1001:
-            incoming_no = "12345"
-        elif card_id == 1002:
-            incoming_no = "12346"
-        elif card_id == 2001:
-            incoming_no = "12347"
-        else:
+        # Получить карточку из Kaiten
+        card = await kaiten_service.get_card_by_id(card_id)
+        if not card:
             raise HTTPException(status_code=404, detail=f"Card {card_id} not found")
+
+        # Извлечь incoming_no из properties
+        incoming_no = card.get("properties", {}).get("id_228499")
+        if not incoming_no:
+            raise HTTPException(status_code=400, detail=f"Card {card_id} has no incoming_no (id_228499)")
 
         # Получить файлы
         files = file_service.get_incoming_files(incoming_no)
@@ -44,6 +43,8 @@ async def get_incoming_files(card_id: int):
             files=files,
             total_files=len(files)
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching incoming files: {str(e)}")
 
@@ -60,25 +61,27 @@ async def get_outgoing_files(card_id: int):
         Главный DOCX файл и приложения
     """
     try:
-        # Получить файлы карточки из Kaiten
-        # Для mock-данных используем заглушки
-        card_files = []
-        if card_id == 1001:
-            card_files = [
-                {"name": "исх_письмо_минфин.docx", "url": "http://example.com/file1.docx"},
-                {"name": "приложение_1.pdf", "url": "http://example.com/file2.pdf"}
-            ]
-        elif card_id == 1002:
-            card_files = [
-                {"name": "исх_договор.docx", "url": "http://example.com/file3.docx"}
-            ]
-        elif card_id == 2001:
-            card_files = [
-                {"name": "исх_отчет.docx", "url": "http://example.com/file4.docx"}
-            ]
+        # Получить карточку из Kaiten
+        card = await kaiten_service.get_card_by_id(card_id)
+        if not card:
+            raise HTTPException(status_code=404, detail=f"Card {card_id} not found")
+
+        # Извлечь файлы из карточки
+        card_files = card.get("files", [])
+
+        # Преобразовать формат файлов Kaiten в нужный формат
+        formatted_files = [
+            {
+                "name": file.get("name"),
+                "url": file.get("url"),
+                "size": file.get("size")
+            }
+            for file in card_files
+            if not file.get("deleted", False)  # Исключить удаленные файлы
+        ]
 
         # Получить структурированные файлы
-        files_data = file_service.get_outgoing_files(card_id, card_files)
+        files_data = file_service.get_outgoing_files(card_id, formatted_files)
 
         total = 0
         if files_data["main_docx"]:
@@ -91,6 +94,8 @@ async def get_outgoing_files(card_id: int):
             attachments=files_data["attachments"],
             total_files=total
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching outgoing files: {str(e)}")
 
