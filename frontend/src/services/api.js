@@ -9,6 +9,45 @@ const api = axios.create({
   },
 });
 
+// Interceptor для добавления токена к запросам
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Interceptor для обработки ошибок авторизации
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Удаляем токен и перенаправляем на логин
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// API методы для авторизации
+export const authApi = {
+  login: (username, password) =>
+    api.post('/api/auth/login', { username, password }),
+  getCurrentUser: () => api.get('/api/auth/me'),
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
+};
+
 // API методы для Kaiten
 export const kaitenApi = {
   getCards: (role) => api.get(`/api/kaiten/cards?role=${role}`),
