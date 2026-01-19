@@ -24,4 +24,12 @@ export const filesApi = {
   getViewerUrl: (fileUrl) => api.post('/api/files/viewer', { file_url: fileUrl }),
 };
 
+// API методы для журнала
+export const journalApi = {
+  getEntries: (params) => api.get('/api/journal/entries', { params }),
+  exportToXlsx: (params) => api.get('/api/journal/export/xlsx', { params, responseType: 'blob' }),
+  createEntry: (data) => api.post('/api/journal/entries', data),
+  getNextNumber: () => api.get('/api/journal/next-number'),
+};
+
 export default api;

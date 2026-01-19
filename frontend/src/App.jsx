@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import IncomingFiles from './components/IncomingFiles';
 import OutgoingFiles from './components/OutgoingFiles';
+import Journal from './components/Journal';
 import { kaitenApi } from './services/api';
 import './App.css';
 
@@ -74,12 +75,19 @@ function App() {
         >
           📤 Исходящие
         </button>
+        <button
+          className={`tab ${activeTab === 'journal' ? 'active' : ''}`}
+          onClick={() => setActiveTab('journal')}
+        >
+          📖 Журнал
+        </button>
       </div>
 
       {/* Контент */}
       <div className="content">
         {activeTab === 'incoming' && <IncomingFiles cardId={cardId} />}
         {activeTab === 'outgoing' && <OutgoingFiles cardId={cardId} />}
+        {activeTab === 'journal' && <Journal />}
       </div>
     </div>
   );

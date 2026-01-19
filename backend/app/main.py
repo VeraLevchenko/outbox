@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 from app.core.config import settings
-from app.api import kaiten, files, auth
+from app.api import kaiten, files, auth, journal
 from app.services.kaiten_service import kaiten_service
 
 
@@ -62,6 +62,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(kaiten.router)
 app.include_router(files.router)
+app.include_router(journal.router)
 
 
 @app.get("/")
