@@ -30,6 +30,35 @@ class TokenResponse(BaseModel):
         }
 
 
+class UserData(BaseModel):
+    """Данные пользователя"""
+    id: int
+    username: str
+    full_name: str
+    role: str
+
+
+class TokenWithUserResponse(BaseModel):
+    """Ответ с токеном и данными пользователя"""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserData
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer",
+                "user": {
+                    "id": 1,
+                    "username": "director",
+                    "full_name": "director",
+                    "role": "director"
+                }
+            }
+        }
+
+
 class UserResponse(BaseModel):
     """Информация о пользователе"""
     username: str

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import timedelta
 from app.services.auth_service import auth_service
-from app.schemas.auth_schemas import LoginRequest, TokenResponse, UserResponse
+from app.schemas.auth_schemas import LoginRequest, TokenResponse, UserResponse, TokenWithUserResponse, UserData
 from app.core.config import settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -45,7 +45,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return user
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenWithUserResponse)
 async def login(login_data: LoginRequest):
     """
     Вход в систему
@@ -54,7 +54,7 @@ async def login(login_data: LoginRequest):
         login_data: Логин и пароль
 
     Returns:
-        JWT токен доступа
+        JWT токен доступа и данные пользователя
 
     Raises:
         HTTPException: Если логин или пароль неверны
@@ -75,7 +75,16 @@ async def login(login_data: LoginRequest):
         expires_delta=access_token_expires
     )
 
-    return TokenResponse(access_token=access_token, token_type="bearer")
+    return TokenWithUserResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserData(
+            id=user['id'],
+            username=user['username'],
+            full_name=user['full_name'],
+            role=user['role']
+        )
+    )
 
 
 @router.get("/me", response_model=UserResponse)
