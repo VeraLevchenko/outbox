@@ -32,6 +32,8 @@ async def get_incoming_files(card_id: int):
 
         # Извлечь incoming_no из properties
         incoming_no = card.get("properties", {}).get("id_228499")
+        print(f"[API] Extracted incoming_no from card {card_id}: {incoming_no} (type: {type(incoming_no)})")
+
         if not incoming_no:
             raise HTTPException(status_code=400, detail=f"Card {card_id} has no incoming_no (id_228499)")
 

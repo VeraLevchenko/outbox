@@ -98,21 +98,27 @@ class FileService:
             return self._get_mock_incoming_files(incoming_no)
 
         # Реальная логика работы с файловой системой
-        folder_path = self.incoming_path / incoming_no
+        folder_path = self.incoming_path / str(incoming_no)
+        print(f"[FileService] Looking for incoming files in: {folder_path}")
+
         if not folder_path.exists():
+            print(f"[FileService] Folder does not exist: {folder_path}")
             return []
 
         files = []
         for file_path in folder_path.iterdir():
             if file_path.is_file():
-                files.append({
+                file_info = {
                     "name": file_path.name,
                     "path": str(file_path),
                     "size": file_path.stat().st_size,
                     "type": self._get_mime_type(file_path.suffix),
                     "is_main": False  # Определяется логикой приложения
-                })
+                }
+                files.append(file_info)
+                print(f"[FileService] Found file: {file_path.name} ({file_info['size']} bytes)")
 
+        print(f"[FileService] Total incoming files found: {len(files)}")
         return files
 
     def get_outgoing_files(self, card_id: int, card_files: List[Dict]) -> Dict:
