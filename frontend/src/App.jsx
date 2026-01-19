@@ -1,11 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import IncomingFiles from './components/IncomingFiles';
 import OutgoingFiles from './components/OutgoingFiles';
+import { kaitenApi } from './services/api';
 import './App.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('incoming');
-  const [cardId, setCardId] = useState(1001);
+  const [cardId, setCardId] = useState(null);
+  const [cards, setCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Загрузить карточки из Kaiten при монтировании
+  useEffect(() => {
+    loadCards();
+  }, []);
+
+  const loadCards = async () => {
+    try {
+      setLoading(true);
+      const response = await kaitenApi.getCards('director');
+      const fetchedCards = response.data || [];
+      setCards(fetchedCards);
+
+      // Автоматически выбрать первую карточку
+      if (fetchedCards.length > 0) {
+        setCardId(fetchedCards[0].id);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки карточек:', error);
+      setCards([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="app">
@@ -14,14 +41,22 @@ function App() {
         <h1>Outbox - Просмотр файлов</h1>
         <div className="card-selector">
           <label>Карточка: </label>
-          <select
-            value={cardId}
-            onChange={(e) => setCardId(Number(e.target.value))}
-          >
-            <option value={1001}>1001 - Письмо в Минфин</option>
-            <option value={1002}>1002 - Договор на поставку</option>
-            <option value={2001}>2001 - Отчет о работе</option>
-          </select>
+          {loading ? (
+            <span>Загрузка...</span>
+          ) : cards.length > 0 ? (
+            <select
+              value={cardId || ''}
+              onChange={(e) => setCardId(Number(e.target.value))}
+            >
+              {cards.map((card) => (
+                <option key={card.id} value={card.id}>
+                  {card.properties?.id_228499 || card.id} - {card.title}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span>Нет карточек</span>
+          )}
         </div>
       </header>
 
