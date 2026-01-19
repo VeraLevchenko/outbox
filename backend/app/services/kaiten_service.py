@@ -15,7 +15,7 @@ class KaitenService:
             "Authorization": f"Bearer {self.api_token}",
             "Content-Type": "application/json"
         }
-        self.use_mock = settings.DEBUG  # Использовать mock-данные в debug режиме
+        self.use_mock = settings.KAITEN_USE_MOCK  # Использовать mock-данные только если явно указано
 
     def _get_mock_cards(self, column_name: str) -> List[Dict]:
         """Генерировать mock-данные для тестирования"""
@@ -74,26 +74,38 @@ class KaitenService:
         Returns:
             Список карточек
         """
-        # В debug режиме используем mock-данные
+        # В mock режиме используем mock-данные
         if self.use_mock:
             print(f"[Mock] Returning mock cards for column: {column_name}")
             return self._get_mock_cards(column_name)
 
-        # В продакшене используем настоящий Kaiten API
+        # Определяем ID колонки по названию
+        column_id = None
+        if column_name == "На подпись":
+            column_id = settings.KAITEN_COLUMN_TO_SIGN_ID
+        elif column_name == "Проект готов. Согласование начальника отдела":
+            column_id = settings.KAITEN_COLUMN_HEAD_REVIEW_ID
+
+        if not column_id:
+            print(f"Unknown column name: {column_name}")
+            return []
+
+        # Используем настоящий Kaiten API
         async with httpx.AsyncClient() as client:
             try:
+                # Получаем карточки из конкретной колонки
                 response = await client.get(
-                    f"{self.api_url}/cards",
+                    f"{self.api_url}/boards/{settings.KAITEN_BOARD_ID}/columns/{column_id}/cards",
                     headers=self.headers,
                     timeout=10.0
                 )
 
                 if response.status_code == 200:
                     cards = response.json()
-                    # Фильтровать по колонке
-                    return [card for card in cards if card.get("column_name") == column_name]
+                    print(f"[Kaiten API] Found {len(cards)} cards in column '{column_name}' (ID: {column_id})")
+                    return cards
                 else:
-                    print(f"Kaiten API error: {response.status_code}")
+                    print(f"Kaiten API error: {response.status_code}, Response: {response.text}")
                     return []
             except Exception as e:
                 print(f"Error fetching cards from Kaiten: {e}")
@@ -111,23 +123,41 @@ class KaitenService:
         Returns:
             True если успешно, False если ошибка
         """
+        # Определяем ID целевой колонки
+        column_id = None
+        if target_column == "На подпись":
+            column_id = settings.KAITEN_COLUMN_TO_SIGN_ID
+        elif target_column == "Отправка":
+            column_id = settings.KAITEN_COLUMN_OUTBOX_ID
+        elif target_column == "Проект готов. Согласование начальника отдела":
+            column_id = settings.KAITEN_COLUMN_HEAD_REVIEW_ID
+
+        if not column_id:
+            print(f"Unknown target column: {target_column}")
+            return False
+
         async with httpx.AsyncClient() as client:
             try:
                 payload = {
-                    "column_name": target_column
+                    "column_id": column_id
                 }
 
                 if comment:
                     payload["comment"] = comment
 
-                response = await client.post(
-                    f"{self.api_url}/cards/{card_id}/move",
+                response = await client.patch(
+                    f"{self.api_url}/cards/{card_id}",
                     headers=self.headers,
                     json=payload,
                     timeout=10.0
                 )
 
-                return response.status_code in [200, 201]
+                if response.status_code in [200, 201]:
+                    print(f"[Kaiten API] Card {card_id} moved to '{target_column}' (ID: {column_id})")
+                    return True
+                else:
+                    print(f"[Kaiten API] Error moving card {card_id}: {response.status_code}, Response: {response.text}")
+                    return False
             except Exception as e:
                 print(f"Error moving card {card_id}: {e}")
                 return False

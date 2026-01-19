@@ -9,6 +9,18 @@ class Settings(BaseSettings):
     KAITEN_API_URL: str
     KAITEN_API_TOKEN: str
     KAITEN_POLL_INTERVAL: int = 5
+    KAITEN_USE_MOCK: bool = False
+
+    # Kaiten Board and Column IDs
+    KAITEN_BOARD_ID: int
+    KAITEN_LANE_ID: int
+    KAITEN_COLUMN_TO_SIGN_ID: int
+    KAITEN_COLUMN_OUTBOX_ID: int
+    KAITEN_COLUMN_HEAD_REVIEW_ID: int
+
+    # Kaiten Properties
+    KAITEN_PROPERTY_INCOMING_NO: str
+    KAITEN_PROPERTY_INCOMING_DATE: str
 
     # Application
     APP_HOST: str = "0.0.0.0"
