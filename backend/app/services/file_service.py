@@ -10,7 +10,7 @@ class FileService:
     def __init__(self):
         self.incoming_path = Path(settings.INCOMING_FILES_PATH)
         self.outgoing_path = Path(settings.OUTGOING_FILES_PATH)
-        self.use_mock = settings.DEBUG
+        self.use_mock = settings.KAITEN_USE_MOCK  # Использовать mock только если явно указано
 
     def _get_mock_incoming_files(self, incoming_no: str) -> List[Dict]:
         """Генерировать mock-данные для входящих файлов"""
