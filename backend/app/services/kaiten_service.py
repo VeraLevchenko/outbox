@@ -95,8 +95,9 @@ class KaitenService:
             try:
                 # Получаем карточки из конкретной колонки
                 response = await client.get(
-                    f"{self.api_url}/boards/{settings.KAITEN_BOARD_ID}/columns/{column_id}/cards",
+                    f"{self.api_url}/cards",
                     headers=self.headers,
+                    params={"column_id": column_id},
                     timeout=10.0
                 )
 
