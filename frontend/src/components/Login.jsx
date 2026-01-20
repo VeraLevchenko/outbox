@@ -54,13 +54,13 @@ const Login = ({ onLoginSuccess }) => {
       justifyContent: 'center',
       alignItems: 'center',
       height: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      background: '#f3f4f6'
     }}>
       <div style={{
         background: 'white',
         padding: '40px',
-        borderRadius: '10px',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+        borderRadius: '4px',
+        border: '1px solid #e5e7eb',
         width: '400px',
         maxWidth: '90%'
       }}>
@@ -154,23 +154,22 @@ const Login = ({ onLoginSuccess }) => {
             style={{
               width: '100%',
               padding: '12px',
-              background: loading ? '#999' : '#667eea',
+              background: loading ? '#9ca3af' : '#4b5563',
               color: 'white',
               border: 'none',
-              borderRadius: '5px',
+              borderRadius: '4px',
               fontSize: '16px',
               fontWeight: '500',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.3s'
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
             onMouseEnter={(e) => {
               if (!loading) {
-                e.target.style.background = '#5568d3';
+                e.target.style.background = '#374151';
               }
             }}
             onMouseLeave={(e) => {
               if (!loading) {
-                e.target.style.background = '#667eea';
+                e.target.style.background = '#4b5563';
               }
             }}
           >
