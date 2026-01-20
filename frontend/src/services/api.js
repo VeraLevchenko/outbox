@@ -68,6 +68,8 @@ export const journalApi = {
   getEntries: (params) => api.get('/api/journal/entries', { params }),
   exportToXlsx: (params) => api.get('/api/journal/export/xlsx', { params, responseType: 'blob' }),
   createEntry: (data) => api.post('/api/journal/entries', data),
+  updateEntry: (id, data) => api.put(`/api/journal/entries/${id}`, data),
+  deleteEntry: (id) => api.delete(`/api/journal/entries/${id}`),
   getNextNumber: () => api.get('/api/journal/next-number'),
 };
 
