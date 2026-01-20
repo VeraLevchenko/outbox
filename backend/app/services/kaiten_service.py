@@ -192,6 +192,72 @@ class KaitenService:
                 print(f"Error fetching card {card_id}: {e}")
                 return None
 
+    async def get_card_members(self, card_id: int) -> List[Dict]:
+        """
+        Получить участников карточки
+
+        Args:
+            card_id: ID карточки
+
+        Returns:
+            Список участников карточки с информацией о типе
+        """
+        # В mock режиме возвращаем тестовые данные
+        if self.use_mock:
+            print(f"[Mock] Returning mock members for card {card_id}")
+            return [
+                {
+                    "user_id": 531592,
+                    "full_name": "Евгения",
+                    "type": 2  # исполнитель
+                },
+                {
+                    "user_id": 123456,
+                    "full_name": "Иван Иванов",
+                    "type": 1  # наблюдатель
+                }
+            ]
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.api_url}/cards/{card_id}/members",
+                    headers=self.headers,
+                    timeout=10.0
+                )
+
+                if response.status_code == 200:
+                    members = response.json()
+                    print(f"[Kaiten API] Found {len(members)} members for card {card_id}")
+                    return members
+                else:
+                    print(f"[Kaiten API] Error fetching members for card {card_id}: {response.status_code}")
+                    return []
+            except Exception as e:
+                print(f"Error fetching members for card {card_id}: {e}")
+                return []
+
+    async def get_executor_from_card(self, card_id: int) -> Optional[Dict]:
+        """
+        Получить исполнителя карточки (member с type=2)
+
+        Args:
+            card_id: ID карточки
+
+        Returns:
+            Данные исполнителя или None если не найден
+        """
+        members = await self.get_card_members(card_id)
+
+        # Ищем участника с type=2 (исполнитель)
+        for member in members:
+            if member.get('type') == 2:
+                print(f"[Kaiten API] Found executor for card {card_id}: {member.get('full_name')}")
+                return member
+
+        print(f"[Kaiten API] No executor (type=2) found for card {card_id}")
+        return None
+
     async def poll_cards(self, column_name: str, interval: int = None):
         """
         Polling карточек из колонки

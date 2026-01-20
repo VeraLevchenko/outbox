@@ -15,6 +15,7 @@ from app.schemas.journal_schemas import (
     JournalListResponse
 )
 from app.services.excel_service import excel_service
+from app.services.config_service import config_service
 from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/api/journal", tags=["journal"])
@@ -270,6 +271,7 @@ async def delete_journal_entry(
 
 @router.get("/next-number")
 async def get_next_outgoing_number(
+    executor_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -277,22 +279,84 @@ async def get_next_outgoing_number(
     Получить следующий доступный исходящий номер
 
     Args:
+        executor_id: ID исполнителя из Kaiten (опционально)
         db: Сессия БД
         current_user: Текущий пользователь
 
     Returns:
-        Следующий доступный номер
+        Следующий доступный номер с форматированием согласно правилам
     """
     try:
+        # Получаем правила нумерации для исполнителя
+        numbering_rule = config_service.get_numbering_rule_for_executor(executor_id) if executor_id else config_service.get_numbering_rules().get('default', {})
+
+        # Извлекаем параметры из правила
+        prefix = numbering_rule.get('prefix', '')
+        number_format = numbering_rule.get('format', '{number}')
+        start_number = numbering_rule.get('start_number', 1)
+        reset_yearly = numbering_rule.get('reset_yearly', False)
+
+        # Определяем фильтр для поиска максимального номера
+        query = db.query(func.max(OutboxJournal.outgoing_no))
+
+        # Если нумерация сбрасывается ежегодно, фильтруем по текущему году
+        if reset_yearly:
+            current_year = date.today().year
+            query = query.filter(
+                func.extract('year', OutboxJournal.outgoing_date) == current_year
+            )
+
+        # Если есть исполнитель, фильтруем по нему
+        if executor_id:
+            executor = config_service.get_executor_by_user_id(executor_id)
+            if executor:
+                executor_name = executor.get('full_name', '')
+                query = query.filter(OutboxJournal.executor == executor_name)
+
         # Получаем максимальный номер
-        max_no = db.query(func.max(OutboxJournal.outgoing_no)).scalar()
+        max_no = query.scalar()
+        next_number = (max_no or (start_number - 1)) + 1
 
-        next_no = (max_no or 0) + 1
+        # Форматируем номер согласно правилу
+        formatted_number = number_format.format(
+            prefix=prefix,
+            number=next_number
+        )
 
-        return {"next_number": next_no}
+        return {
+            "next_number": next_number,
+            "formatted_number": formatted_number,
+            "prefix": prefix,
+            "executor_id": executor_id
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting next number: {str(e)}")
+
+
+@router.post("/reload-config")
+async def reload_configuration(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Перезагрузить конфигурационные файлы (executors.json, numbering_rules.json)
+    без перезапуска сервера
+
+    Args:
+        current_user: Текущий пользователь
+
+    Returns:
+        Сообщение об успешной перезагрузке
+    """
+    try:
+        config_service.reload_configs()
+        return {
+            "message": "Configuration reloaded successfully",
+            "executors_count": len(config_service.get_executors()),
+            "numbering_rules_count": len(config_service.get_numbering_rules())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reloading configuration: {str(e)}")
 
 
 @router.get("/export/xlsx")

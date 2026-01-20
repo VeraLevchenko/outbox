@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "531592": {
+      "executor_name": "Евгения",
+      "prefix": "ЕВ",
+      "format": "{prefix}-{number}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "default": {
+      "prefix": "ОБЩ",
+      "format": "{number}",
+      "start_number": 1,
+      "reset_yearly": false
+    }
+  },
+  "description": "Правила нумерации для каждого исполнителя. Ключ - user_id исполнителя из Kaiten"
+}
