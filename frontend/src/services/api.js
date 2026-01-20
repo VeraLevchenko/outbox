@@ -53,6 +53,8 @@ export const kaitenApi = {
   getCards: (role) => api.get(`/api/kaiten/cards?role=${role}`),
   moveCard: (cardId, targetColumn, comment) =>
     api.post(`/api/kaiten/cards/${cardId}/move`, { target_column: targetColumn, comment }),
+  getCardMembers: (cardId) => api.get(`/api/kaiten/cards/${cardId}/members`),
+  getCardExecutor: (cardId) => api.get(`/api/kaiten/cards/${cardId}/executor`),
 };
 
 // API методы для файлов

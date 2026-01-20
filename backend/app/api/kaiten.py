@@ -59,3 +59,45 @@ async def move_card(
             raise HTTPException(status_code=500, detail="Failed to move card")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error moving card: {str(e)}")
+
+
+@router.get("/cards/{card_id}/members")
+async def get_card_members(card_id: int) -> List[Dict]:
+    """
+    Получить участников карточки
+
+    Args:
+        card_id: ID карточки
+
+    Returns:
+        Список участников карточки
+    """
+    try:
+        members = await kaiten_service.get_card_members(card_id)
+        return members
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching card members: {str(e)}")
+
+
+@router.get("/cards/{card_id}/executor")
+async def get_card_executor(card_id: int) -> Dict:
+    """
+    Получить исполнителя карточки (member с type=2)
+
+    Args:
+        card_id: ID карточки
+
+    Returns:
+        Данные исполнителя
+    """
+    try:
+        executor = await kaiten_service.get_executor_from_card(card_id)
+
+        if executor:
+            return executor
+        else:
+            raise HTTPException(status_code=404, detail="No executor found for this card")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching executor: {str(e)}")

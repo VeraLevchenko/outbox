@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { filesApi } from '../services/api';
+import { filesApi, kaitenApi } from '../services/api';
 import FileViewer from './FileViewer';
 
 const OutgoingFiles = ({ cardId }) => {
@@ -8,10 +8,13 @@ const OutgoingFiles = ({ cardId }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [executor, setExecutor] = useState(null);
+  const [executorLoading, setExecutorLoading] = useState(false);
 
   useEffect(() => {
     if (cardId) {
       loadFiles();
+      loadExecutor();
     }
   }, [cardId]);
 
@@ -34,6 +37,20 @@ const OutgoingFiles = ({ cardId }) => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadExecutor = async () => {
+    try {
+      setExecutorLoading(true);
+      const response = await kaitenApi.getCardExecutor(cardId);
+      setExecutor(response.data);
+    } catch (err) {
+      console.error('Ошибка загрузки исполнителя:', err);
+      // Не показываем ошибку пользователю, так как это не критично
+      setExecutor(null);
+    } finally {
+      setExecutorLoading(false);
     }
   };
 
@@ -77,6 +94,43 @@ const OutgoingFiles = ({ cardId }) => {
         }}>
           Исходящие файлы ({allFiles.length})
         </div>
+
+        {/* Информация об исполнителе */}
+        {executor && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#ffffff',
+            borderBottom: '2px solid #e5e7eb',
+            fontSize: '14px'
+          }}>
+            <div style={{
+              color: '#6b7280',
+              fontSize: '12px',
+              fontWeight: '600',
+              marginBottom: '4px',
+              textTransform: 'uppercase'
+            }}>
+              Исполнитель
+            </div>
+            <div style={{
+              color: '#111827',
+              fontWeight: '500'
+            }}>
+              {executor.full_name}
+            </div>
+          </div>
+        )}
+        {executorLoading && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#ffffff',
+            borderBottom: '2px solid #e5e7eb',
+            fontSize: '13px',
+            color: '#9ca3af'
+          }}>
+            Загрузка исполнителя...
+          </div>
+        )}
 
         {/* Главный DOCX */}
         {mainDocx && (
