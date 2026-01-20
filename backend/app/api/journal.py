@@ -4,10 +4,13 @@ from typing import Optional
 from datetime import date
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+import os
+import shutil
 from app.models.database import SessionLocal
 from app.models.outbox_journal import OutboxJournal
 from app.schemas.journal_schemas import (
     JournalEntryCreate,
+    JournalEntryUpdate,
     JournalEntryResponse,
     JournalListResponse
 )
@@ -147,6 +150,122 @@ async def create_journal_entry(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating journal entry: {str(e)}")
+
+
+@router.put("/entries/{entry_id}", response_model=JournalEntryResponse)
+async def update_journal_entry(
+    entry_id: int,
+    entry_update: JournalEntryUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Обновить запись в журнале
+
+    Args:
+        entry_id: ID записи
+        entry_update: Данные для обновления
+        db: Сессия БД
+        current_user: Текущий пользователь
+
+    Returns:
+        Обновленная запись
+    """
+    try:
+        # Ищем запись
+        entry = db.query(OutboxJournal).filter(OutboxJournal.id == entry_id).first()
+
+        if not entry:
+            raise HTTPException(status_code=404, detail=f"Journal entry {entry_id} not found")
+
+        # Проверяем уникальность outgoing_no, если он изменяется
+        if entry_update.outgoing_no is not None and entry_update.outgoing_no != entry.outgoing_no:
+            existing = db.query(OutboxJournal).filter(
+                OutboxJournal.outgoing_no == entry_update.outgoing_no,
+                OutboxJournal.id != entry_id
+            ).first()
+
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Outgoing number {entry_update.outgoing_no} already exists"
+                )
+
+        # Обновляем поля
+        if entry_update.outgoing_no is not None:
+            entry.outgoing_no = entry_update.outgoing_no
+        if entry_update.outgoing_date is not None:
+            entry.outgoing_date = entry_update.outgoing_date
+        if entry_update.to_whom is not None:
+            entry.to_whom = entry_update.to_whom
+        if entry_update.executor is not None:
+            entry.executor = entry_update.executor
+        if entry_update.folder_path is not None:
+            entry.folder_path = entry_update.folder_path
+
+        db.commit()
+        db.refresh(entry)
+
+        return JournalEntryResponse(
+            id=entry.id,
+            outgoing_no=entry.outgoing_no,
+            outgoing_date=entry.outgoing_date,
+            to_whom=entry.to_whom,
+            executor=entry.executor,
+            folder_path=entry.folder_path,
+            created_at=entry.created_at.isoformat() if entry.created_at else ""
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating journal entry: {str(e)}")
+
+
+@router.delete("/entries/{entry_id}")
+async def delete_journal_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Удалить запись из журнала и папку с файлами
+
+    Args:
+        entry_id: ID записи
+        db: Сессия БД
+        current_user: Текущий пользователь
+
+    Returns:
+        Сообщение об успешном удалении
+    """
+    try:
+        # Ищем запись
+        entry = db.query(OutboxJournal).filter(OutboxJournal.id == entry_id).first()
+
+        if not entry:
+            raise HTTPException(status_code=404, detail=f"Journal entry {entry_id} not found")
+
+        # Удаляем папку с файлами, если она существует
+        if entry.folder_path and os.path.exists(entry.folder_path):
+            try:
+                shutil.rmtree(entry.folder_path)
+            except Exception as e:
+                # Логируем ошибку, но продолжаем удаление записи из БД
+                print(f"Warning: Failed to delete folder {entry.folder_path}: {str(e)}")
+
+        # Удаляем запись из БД
+        db.delete(entry)
+        db.commit()
+
+        return {"message": f"Journal entry {entry_id} deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting journal entry: {str(e)}")
 
 
 @router.get("/next-number")
