@@ -69,13 +69,13 @@ const OutgoingFiles = ({ cardId }) => {
       }}>
         <div style={{
           padding: '16px 20px',
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          background: '#6b7280',
           color: 'white',
-          fontWeight: '700',
+          fontWeight: '600',
           fontSize: '15px',
-          letterSpacing: '0.3px'
+          borderBottom: '1px solid #e5e7eb'
         }}>
-          📤 Исходящие файлы ({allFiles.length})
+          Исходящие файлы ({allFiles.length})
         </div>
 
         {/* Главный DOCX */}
@@ -83,14 +83,13 @@ const OutgoingFiles = ({ cardId }) => {
           <>
             <div style={{
               padding: '10px 16px',
-              background: '#fef3c7',
+              background: '#f3f4f6',
               fontSize: '12px',
-              fontWeight: '700',
-              color: '#92400e',
-              letterSpacing: '0.5px',
-              textTransform: 'uppercase'
+              fontWeight: '600',
+              color: '#4b5563',
+              borderBottom: '1px solid #e5e7eb'
             }}>
-              ⭐ Главный документ
+              Главный документ
             </div>
             <div
               onClick={() => setSelectedFile(mainDocx)}
@@ -98,14 +97,13 @@ const OutgoingFiles = ({ cardId }) => {
                 padding: '16px',
                 cursor: 'pointer',
                 borderBottom: '1px solid #f3f4f6',
-                background: selectedFile === mainDocx ? '#ede9fe' : 'white',
-                transition: 'all 0.2s ease',
-                borderLeft: selectedFile === mainDocx ? '3px solid #8b5cf6' : '3px solid transparent'
+                background: selectedFile === mainDocx ? '#f3f4f6' : 'white',
+                borderLeft: selectedFile === mainDocx ? '3px solid #4b5563' : '3px solid transparent'
               }}
               onMouseEnter={(e) => {
                 if (selectedFile !== mainDocx) {
                   e.currentTarget.style.background = '#fafafa';
-                  e.currentTarget.style.borderLeft = '3px solid #e5e7eb';
+                  e.currentTarget.style.borderLeft = '3px solid #d1d5db';
                 }
               }}
               onMouseLeave={(e) => {
@@ -130,15 +128,14 @@ const OutgoingFiles = ({ cardId }) => {
           <>
             <div style={{
               padding: '10px 16px',
-              background: '#d1fae5',
+              background: '#f3f4f6',
               fontSize: '12px',
-              fontWeight: '700',
-              color: '#065f46',
-              letterSpacing: '0.5px',
-              textTransform: 'uppercase',
+              fontWeight: '600',
+              color: '#4b5563',
+              borderBottom: '1px solid #e5e7eb',
               marginTop: '8px'
             }}>
-              📎 Приложения ({attachments.length})
+              Приложения ({attachments.length})
             </div>
             {attachments.map((file, index) => (
               <div
@@ -148,14 +145,13 @@ const OutgoingFiles = ({ cardId }) => {
                   padding: '16px',
                   cursor: 'pointer',
                   borderBottom: '1px solid #f3f4f6',
-                  background: selectedFile === file ? '#ede9fe' : 'white',
-                  transition: 'all 0.2s ease',
-                  borderLeft: selectedFile === file ? '3px solid #8b5cf6' : '3px solid transparent'
+                  background: selectedFile === file ? '#f3f4f6' : 'white',
+                  borderLeft: selectedFile === file ? '3px solid #4b5563' : '3px solid transparent'
                 }}
                 onMouseEnter={(e) => {
                   if (selectedFile !== file) {
                     e.currentTarget.style.background = '#fafafa';
-                    e.currentTarget.style.borderLeft = '3px solid #e5e7eb';
+                    e.currentTarget.style.borderLeft = '3px solid #d1d5db';
                   }
                 }}
                 onMouseLeave={(e) => {

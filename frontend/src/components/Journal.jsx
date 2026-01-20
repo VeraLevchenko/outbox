@@ -139,18 +139,15 @@ const Journal = () => {
             disabled={loading || entries.length === 0}
             style={{
               padding: '8px 16px',
-              background: entries.length > 0 ? '#4CAF50' : '#ccc',
+              background: entries.length > 0 ? '#4b5563' : '#d1d5db',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
               cursor: entries.length > 0 ? 'pointer' : 'not-allowed',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
+              fontWeight: '500'
             }}
           >
-            📥 Экспорт в Excel
+            Экспорт в Excel
           </button>
         </div>
       </div>
@@ -178,7 +175,7 @@ const Journal = () => {
             width: '100%',
             borderCollapse: 'collapse',
             background: 'white',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            border: '1px solid #e5e7eb'
           }}>
             <thead>
               <tr style={{ background: '#f5f5f5' }}>

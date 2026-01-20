@@ -62,13 +62,13 @@ const IncomingFiles = ({ cardId }) => {
       }}>
         <div style={{
           padding: '16px 20px',
-          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          background: '#6b7280',
           color: 'white',
-          fontWeight: '700',
+          fontWeight: '600',
           fontSize: '15px',
-          letterSpacing: '0.3px'
+          borderBottom: '1px solid #e5e7eb'
         }}>
-          📥 Входящие файлы ({files.length})
+          Входящие файлы ({files.length})
         </div>
         {files.map((file, index) => (
           <div
@@ -78,14 +78,13 @@ const IncomingFiles = ({ cardId }) => {
               padding: '16px',
               cursor: 'pointer',
               borderBottom: '1px solid #f3f4f6',
-              background: selectedFile === file ? '#dcfce7' : 'white',
-              transition: 'all 0.2s ease',
-              borderLeft: selectedFile === file ? '3px solid #10b981' : '3px solid transparent'
+              background: selectedFile === file ? '#f3f4f6' : 'white',
+              borderLeft: selectedFile === file ? '3px solid #4b5563' : '3px solid transparent'
             }}
             onMouseEnter={(e) => {
               if (selectedFile !== file) {
                 e.currentTarget.style.background = '#fafafa';
-                e.currentTarget.style.borderLeft = '3px solid #e5e7eb';
+                e.currentTarget.style.borderLeft = '3px solid #d1d5db';
               }
             }}
             onMouseLeave={(e) => {
@@ -104,12 +103,11 @@ const IncomingFiles = ({ cardId }) => {
             {file.is_main && (
               <div style={{
                 fontSize: '11px',
-                color: '#10b981',
+                color: '#6b7280',
                 marginTop: '6px',
-                fontWeight: '700',
-                letterSpacing: '0.3px'
+                fontWeight: '600'
               }}>
-                ⭐ Основной документ
+                Основной документ
               </div>
             )}
           </div>
