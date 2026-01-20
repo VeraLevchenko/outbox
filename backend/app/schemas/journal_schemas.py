@@ -47,6 +47,26 @@ class JournalEntryResponse(BaseModel):
         }
 
 
+class JournalEntryUpdate(BaseModel):
+    """Схема для обновления записи в журнале"""
+    outgoing_no: int | None = None
+    outgoing_date: date | None = None
+    to_whom: str | None = None
+    executor: str | None = None
+    folder_path: str | None = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "outgoing_no": 124,
+                "outgoing_date": "2025-01-19",
+                "to_whom": "Министерство образования РФ",
+                "executor": "Петров П.И.",
+                "folder_path": "/mnt/doc/Исходящие/2025/01/124"
+            }
+        }
+
+
 class JournalListResponse(BaseModel):
     """Схема для списка записей журнала"""
     entries: list[JournalEntryResponse]
