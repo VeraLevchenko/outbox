@@ -2,17 +2,17 @@
   "rules": {
     "531592": {
       "executor_name": "Евгения",
-      "prefix": "ЕВ",
-      "format": "{prefix}-{number}",
+      "executor_code": "10",
+      "format": "{number}-{executor_code}",
       "start_number": 1,
       "reset_yearly": true
     },
     "default": {
-      "prefix": "ОБЩ",
-      "format": "{number}",
+      "executor_code": "00",
+      "format": "{number}-{executor_code}",
       "start_number": 1,
       "reset_yearly": false
     }
   },
-  "description": "Правила нумерации для каждого исполнителя. Ключ - user_id исполнителя из Kaiten"
+  "description": "Правила нумерации для каждого исполнителя. Ключ - user_id исполнителя из Kaiten. Формат: номер-код_исполнителя (например, 42-10)"
 }

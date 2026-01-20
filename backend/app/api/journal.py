@@ -291,8 +291,8 @@ async def get_next_outgoing_number(
         numbering_rule = config_service.get_numbering_rule_for_executor(executor_id) if executor_id else config_service.get_numbering_rules().get('default', {})
 
         # Извлекаем параметры из правила
-        prefix = numbering_rule.get('prefix', '')
-        number_format = numbering_rule.get('format', '{number}')
+        executor_code = numbering_rule.get('executor_code', '00')
+        number_format = numbering_rule.get('format', '{number}-{executor_code}')
         start_number = numbering_rule.get('start_number', 1)
         reset_yearly = numbering_rule.get('reset_yearly', False)
 
@@ -317,16 +317,16 @@ async def get_next_outgoing_number(
         max_no = query.scalar()
         next_number = (max_no or (start_number - 1)) + 1
 
-        # Форматируем номер согласно правилу
+        # Форматируем номер согласно правилу (например, 42-10)
         formatted_number = number_format.format(
-            prefix=prefix,
-            number=next_number
+            number=next_number,
+            executor_code=executor_code
         )
 
         return {
             "next_number": next_number,
             "formatted_number": formatted_number,
-            "prefix": prefix,
+            "executor_code": executor_code,
             "executor_id": executor_id
         }
 

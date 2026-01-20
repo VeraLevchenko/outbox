@@ -84,8 +84,8 @@ class ConfigService:
 
         # Возвращаем правило по умолчанию
         return rules.get('default', {
-            'prefix': 'ОБЩ',
-            'format': '{number}',
+            'executor_code': '00',
+            'format': '{number}-{executor_code}',
             'start_number': 1,
             'reset_yearly': False
         })
