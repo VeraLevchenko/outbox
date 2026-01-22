@@ -32,6 +32,41 @@ class DocxService:
             response.raise_for_status()
             return response.content
 
+    def check_has_placeholders(self, docx_bytes: bytes) -> bool:
+        """
+        Проверить, есть ли в документе плейсхолдеры для заполнения
+
+        Args:
+            docx_bytes: Содержимое DOCX файла
+
+        Returns:
+            True если найдены плейсхолдеры, False если нет
+        """
+        try:
+            doc = Document(io.BytesIO(docx_bytes))
+
+            # Проверяем плейсхолдеры в параграфах
+            for paragraph in doc.paragraphs:
+                if '{{outgoing_no}}' in paragraph.text or \
+                   '{{outgoing_date}}' in paragraph.text or \
+                   '{{stamp}}' in paragraph.text:
+                    return True
+
+            # Проверяем плейсхолдеры в таблицах
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            if '{{outgoing_no}}' in paragraph.text or \
+                               '{{outgoing_date}}' in paragraph.text or \
+                               '{{stamp}}' in paragraph.text:
+                                return True
+
+            return False
+        except Exception as e:
+            print(f"Error checking placeholders: {e}")
+            return False
+
     def replace_placeholders(
         self,
         docx_bytes: bytes,

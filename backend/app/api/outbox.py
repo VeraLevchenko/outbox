@@ -110,28 +110,51 @@ async def prepare_registration(
         today = date.today()
         outgoing_date = docx_service.format_date(today)
 
-        # 5. Получаем главный DOCX файл из карточки
-        card_files = card.get('files', [])
-        files_data = file_service.get_outgoing_files(request.card_id, card_files)
-        main_docx = files_data.get('main_docx')
-
-        if not main_docx:
+        # 5. Проверяем, что выбранный файл - DOCX
+        if not request.selected_file_name.lower().endswith('.docx'):
             raise HTTPException(
-                status_code=404,
-                detail="Main DOCX file not found. File name must start with 'исх_'"
+                status_code=400,
+                detail=f"Выбранный файл '{request.selected_file_name}' не является DOCX документом. Регистрировать можно только DOCX файлы с полями для заполнения."
             )
 
-        # 6. Скачиваем DOCX (в mock режиме используем mock данные)
+        # 6. Находим выбранный файл в карточке
+        card_files = card.get('files', [])
+        selected_file = None
+        for file_info in card_files:
+            if file_info.get('name') == request.selected_file_name:
+                selected_file = file_info
+                break
+
+        if not selected_file:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Файл '{request.selected_file_name}' не найден в карточке"
+            )
+
+        # 8. Скачиваем DOCX (в mock режиме используем mock данные)
         if file_service.use_mock:
             # В mock режиме создаем простой DOCX с плейсхолдерами
-            print(f"[Mock] Creating mock DOCX with placeholders")
+            print(f"[Mock] Creating mock DOCX with placeholders for file: {request.selected_file_name}")
             docx_bytes = _create_mock_docx()
         else:
             # Скачиваем реальный файл из Kaiten
-            docx_url = main_docx.get('path')
+            docx_url = selected_file.get('url') or selected_file.get('path')
+            if not docx_url:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"URL файла '{request.selected_file_name}' не найден"
+                )
             docx_bytes = await docx_service.download_docx_from_url(docx_url)
 
-        # 7. Заменяем плейсхолдеры
+        # 9. Проверяем наличие плейсхолдеров
+        has_placeholders = docx_service.check_has_placeholders(docx_bytes)
+        if not has_placeholders:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Файл '{request.selected_file_name}' не содержит полей для заполнения ({{{{outgoing_no}}}}, {{{{outgoing_date}}}}, {{{{stamp}}}}). Регистрировать можно только шаблоны с полями."
+            )
+
+        # 10. Заменяем плейсхолдеры
         modified_docx = docx_service.replace_placeholders(
             docx_bytes,
             formatted_number,

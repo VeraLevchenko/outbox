@@ -24,7 +24,10 @@ const OutgoingFiles = ({ cardId }) => {
     try {
       setLoading(true);
       setError(null);
+      console.log('[OutgoingFiles] Loading files for card:', cardId);
       const response = await filesApi.getOutgoingFiles(cardId);
+      console.log('[OutgoingFiles] Files loaded:', response.data);
+      console.log('[OutgoingFiles] Main DOCX:', response.data.main_docx);
       setMainDocx(response.data.main_docx);
       setAttachments(response.data.attachments || []);
 
@@ -45,10 +48,13 @@ const OutgoingFiles = ({ cardId }) => {
   const loadExecutor = async () => {
     try {
       setExecutorLoading(true);
+      console.log('[OutgoingFiles] Loading executor for card:', cardId);
       const response = await kaitenApi.getCardExecutor(cardId);
+      console.log('[OutgoingFiles] Executor loaded:', response.data);
       setExecutor(response.data);
     } catch (err) {
       console.error('Ошибка загрузки исполнителя:', err);
+      console.error('Error details:', err.response?.data);
       // Не показываем ошибку пользователю, так как это не критично
       setExecutor(null);
     } finally {
@@ -62,13 +68,25 @@ const OutgoingFiles = ({ cardId }) => {
       return;
     }
 
+    if (!selectedFile) {
+      alert('Выберите файл для регистрации в просмотрщике.');
+      return;
+    }
+
+    // Проверяем, что выбранный файл - DOCX
+    if (!selectedFile.name.toLowerCase().endsWith('.docx')) {
+      alert(`Файл "${selectedFile.name}" не является DOCX документом.\n\nРегистрировать можно только DOCX файлы с полями для заполнения ({{outgoing_no}}, {{outgoing_date}}, {{stamp}}).`);
+      return;
+    }
+
     try {
       setRegistering(true);
       setRegistrationResult(null);
 
       // Поле "Кому" берется из названия карточки (title)
       // Исполнитель используется только для генерации номера
-      const response = await outboxApi.prepareRegistration(cardId);
+      // Подписывается файл, который открыт в просмотрщике
+      const response = await outboxApi.prepareRegistration(cardId, selectedFile.name);
       setRegistrationResult(response.data);
 
       // TODO: Следующие шаги - конвертация в PDF и подписание
@@ -94,6 +112,15 @@ const OutgoingFiles = ({ cardId }) => {
   }
 
   const allFiles = mainDocx ? [mainDocx, ...attachments] : attachments;
+
+  // Отладочная информация
+  console.log('[OutgoingFiles] Render state:', {
+    mainDocx: !!mainDocx,
+    executor: !!executor,
+    executorLoading,
+    registering,
+    cardId
+  });
 
   if (allFiles.length === 0) {
     return <div style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '15px' }}>
@@ -159,8 +186,26 @@ const OutgoingFiles = ({ cardId }) => {
           </div>
         )}
 
+        {/* Предупреждение, если исполнитель не найден */}
+        {!executorLoading && !executor && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#fef3c7',
+            borderBottom: '2px solid #e5e7eb',
+            fontSize: '13px',
+            color: '#92400e'
+          }}>
+            <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+              Исполнитель не найден
+            </div>
+            <div style={{ fontSize: '12px' }}>
+              Убедитесь, что в карточке есть участник с типом 2
+            </div>
+          </div>
+        )}
+
         {/* Кнопка "Зарегистрировать и подписать" */}
-        {mainDocx && executor && (
+        {executor && (
           <div style={{
             padding: '16px',
             background: '#ffffff',
