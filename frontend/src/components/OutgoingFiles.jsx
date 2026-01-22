@@ -24,7 +24,10 @@ const OutgoingFiles = ({ cardId }) => {
     try {
       setLoading(true);
       setError(null);
+      console.log('[OutgoingFiles] Loading files for card:', cardId);
       const response = await filesApi.getOutgoingFiles(cardId);
+      console.log('[OutgoingFiles] Files loaded:', response.data);
+      console.log('[OutgoingFiles] Main DOCX:', response.data.main_docx);
       setMainDocx(response.data.main_docx);
       setAttachments(response.data.attachments || []);
 
@@ -45,10 +48,13 @@ const OutgoingFiles = ({ cardId }) => {
   const loadExecutor = async () => {
     try {
       setExecutorLoading(true);
+      console.log('[OutgoingFiles] Loading executor for card:', cardId);
       const response = await kaitenApi.getCardExecutor(cardId);
+      console.log('[OutgoingFiles] Executor loaded:', response.data);
       setExecutor(response.data);
     } catch (err) {
       console.error('Ошибка загрузки исполнителя:', err);
+      console.error('Error details:', err.response?.data);
       // Не показываем ошибку пользователю, так как это не критично
       setExecutor(null);
     } finally {
@@ -94,6 +100,15 @@ const OutgoingFiles = ({ cardId }) => {
   }
 
   const allFiles = mainDocx ? [mainDocx, ...attachments] : attachments;
+
+  // Отладочная информация
+  console.log('[OutgoingFiles] Render state:', {
+    mainDocx: !!mainDocx,
+    executor: !!executor,
+    executorLoading,
+    registering,
+    cardId
+  });
 
   if (allFiles.length === 0) {
     return <div style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '15px' }}>
@@ -156,6 +171,42 @@ const OutgoingFiles = ({ cardId }) => {
             color: '#9ca3af'
           }}>
             Загрузка исполнителя...
+          </div>
+        )}
+
+        {/* Предупреждение, если исполнитель не найден */}
+        {!executorLoading && !executor && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#fef3c7',
+            borderBottom: '2px solid #e5e7eb',
+            fontSize: '13px',
+            color: '#92400e'
+          }}>
+            <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+              Исполнитель не найден
+            </div>
+            <div style={{ fontSize: '12px' }}>
+              Убедитесь, что в карточке есть участник с типом 2
+            </div>
+          </div>
+        )}
+
+        {/* Предупреждение, если нет главного DOCX */}
+        {!mainDocx && !loading && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#fef3c7',
+            borderBottom: '2px solid #e5e7eb',
+            fontSize: '13px',
+            color: '#92400e'
+          }}>
+            <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+              Главный DOCX не найден
+            </div>
+            <div style={{ fontSize: '12px' }}>
+              Файл должен начинаться с "исх_"
+            </div>
           </div>
         )}
 
