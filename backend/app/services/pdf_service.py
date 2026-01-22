@@ -1,5 +1,6 @@
 import subprocess
 import tempfile
+import shutil
 import os
 from pathlib import Path
 from typing import Optional
@@ -59,7 +60,8 @@ class PdfService:
             )
 
         # Создаем временную директорию для файлов
-        with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = tempfile.mkdtemp(prefix='libreoffice_')
+        try:
             temp_dir_path = Path(temp_dir)
 
             # Сохраняем DOCX во временный файл
@@ -68,57 +70,80 @@ class PdfService:
                 f.write(docx_bytes)
 
             # Конвертируем в PDF используя LibreOffice headless
+            print(f"[PdfService] Starting conversion with: {self.libreoffice_path}")
+            print(f"[PdfService] Input DOCX size: {len(docx_bytes)} bytes")
+            print(f"[PdfService] Temp directory: {temp_dir_path}")
+
+            # Окружение для отключения Java и работы в headless режиме
+            env = os.environ.copy()
+            env.update({
+                'HOME': str(temp_dir_path),
+                'SAL_USE_VCLPLUGIN': 'svp',  # Headless plugin
+                'JAVA_DISABLE': '1',
+                'NO_JAVA': '1',
+            })
+
+            result = subprocess.run(
+                [
+                    self.libreoffice_path,
+                    '--headless',
+                    '--invisible',
+                    '--nocrashreport',
+                    '--nodefault',
+                    '--nofirststartwizard',
+                    '--nolockcheck',
+                    '--nologo',
+                    '--norestore',
+                    '--convert-to', 'pdf',
+                    '--outdir', str(temp_dir_path),
+                    str(docx_file)
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env
+            )
+
+            print(f"[PdfService] LibreOffice exit code: {result.returncode}")
+            if result.stdout:
+                print(f"[PdfService] LibreOffice stdout: {result.stdout}")
+            if result.stderr:
+                print(f"[PdfService] LibreOffice stderr: {result.stderr}")
+
+            if result.returncode != 0:
+                raise RuntimeError(f"LibreOffice conversion failed: {result.stderr}")
+
+            # Читаем созданный PDF
+            pdf_file = temp_dir_path / "document.pdf"
+            if not pdf_file.exists():
+                # Пытаемся найти PDF файл с другим именем
+                pdf_files = list(temp_dir_path.glob("*.pdf"))
+                if pdf_files:
+                    pdf_file = pdf_files[0]
+                    print(f"[PdfService] Found PDF: {pdf_file.name}")
+                else:
+                    raise RuntimeError(f"PDF file was not created. Files in temp dir: {list(temp_dir_path.glob('*'))}")
+
+            with open(pdf_file, 'rb') as f:
+                pdf_bytes = f.read()
+
+            print(f"[PdfService] Successfully converted DOCX to PDF ({len(pdf_bytes)} bytes)")
+            return pdf_bytes
+
+        except subprocess.TimeoutExpired:
+            print(f"[PdfService] ERROR: Conversion timeout after 120 seconds")
+            raise RuntimeError("PDF conversion timeout after 120 seconds")
+        except Exception as e:
+            print(f"[PdfService] ERROR: {type(e).__name__}: {str(e)}")
+            raise RuntimeError(f"PDF conversion error: {str(e)}")
+        finally:
+            # Очищаем временную директорию
             try:
-                print(f"[PdfService] Starting conversion with: {self.libreoffice_path}")
-                print(f"[PdfService] Input DOCX size: {len(docx_bytes)} bytes")
-
-                result = subprocess.run(
-                    [
-                        self.libreoffice_path,
-                        '--headless',
-                        '--invisible',
-                        '--nocrashreport',
-                        '--nodefault',
-                        '--nofirststartwizard',
-                        '--nolockcheck',
-                        '--nologo',
-                        '--norestore',
-                        '--convert-to', 'pdf',
-                        '--outdir', str(temp_dir_path),
-                        str(docx_file)
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                    env={**os.environ, 'HOME': str(temp_dir_path)}  # Изолированный HOME для избежания конфликтов
-                )
-
-                print(f"[PdfService] LibreOffice exit code: {result.returncode}")
-                if result.stdout:
-                    print(f"[PdfService] LibreOffice stdout: {result.stdout}")
-                if result.stderr:
-                    print(f"[PdfService] LibreOffice stderr: {result.stderr}")
-
-                if result.returncode != 0:
-                    raise RuntimeError(f"LibreOffice conversion failed: {result.stderr}")
-
-                # Читаем созданный PDF
-                pdf_file = temp_dir_path / "document.pdf"
-                if not pdf_file.exists():
-                    raise RuntimeError("PDF file was not created")
-
-                with open(pdf_file, 'rb') as f:
-                    pdf_bytes = f.read()
-
-                print(f"[PdfService] Successfully converted DOCX to PDF ({len(pdf_bytes)} bytes)")
-                return pdf_bytes
-
-            except subprocess.TimeoutExpired:
-                print(f"[PdfService] ERROR: Conversion timeout after 120 seconds")
-                raise RuntimeError("PDF conversion timeout after 120 seconds")
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                print(f"[PdfService] Cleaned up temp directory: {temp_dir}")
             except Exception as e:
-                print(f"[PdfService] ERROR: {type(e).__name__}: {str(e)}")
-                raise RuntimeError(f"PDF conversion error: {str(e)}")
+                print(f"[PdfService] Warning: Failed to clean up temp directory: {e}")
 
 
 # Singleton instance
