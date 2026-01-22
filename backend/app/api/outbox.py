@@ -33,13 +33,14 @@ async def prepare_registration(
 ):
     """
     Подготовить регистрацию документа:
-    - Получить исполнителя из карточки Kaiten
+    - Получить карточку и извлечь title (для поля "Кому")
+    - Получить исполнителя из карточки Kaiten (для генерации номера)
     - Сгенерировать номер
     - Заменить плейсхолдеры в DOCX
     - Вернуть информацию для предпросмотра
 
     Args:
-        request: Данные запроса (card_id, to_whom)
+        request: Данные запроса (card_id)
         db: Сессия БД
         current_user: Текущий пользователь
 
@@ -47,7 +48,15 @@ async def prepare_registration(
         Данные регистрации с номером и датой
     """
     try:
-        # 1. Получаем исполнителя из карточки Kaiten
+        # 1. Получаем карточку для извлечения title
+        card = await kaiten_service.get_card_by_id(request.card_id)
+        if not card:
+            raise HTTPException(status_code=404, detail=f"Card {request.card_id} not found")
+
+        # Извлекаем title карточки - это поле "Кому"
+        to_whom = card.get('title', '')
+
+        # 2. Получаем исполнителя из карточки Kaiten (для генерации номера)
         executor_data = await kaiten_service.get_executor_from_card(request.card_id)
 
         if not executor_data:
@@ -59,7 +68,7 @@ async def prepare_registration(
         executor_id = executor_data.get('user_id')
         executor_name = executor_data.get('full_name')
 
-        # 2. Генерируем следующий номер
+        # 3. Генерируем следующий номер
         # Используем существующий endpoint get_next_outgoing_number
         from app.api.journal import get_next_outgoing_number as get_next_number_func
         from sqlalchemy import func
@@ -97,15 +106,11 @@ async def prepare_registration(
             executor_code=executor_code
         )
 
-        # 3. Получаем текущую дату в формате ДД.ММ.ГГГГ
+        # 4. Получаем текущую дату в формате ДД.ММ.ГГГГ
         today = date.today()
         outgoing_date = docx_service.format_date(today)
 
-        # 4. Получаем главный DOCX файл из карточки
-        card = await kaiten_service.get_card_by_id(request.card_id)
-        if not card:
-            raise HTTPException(status_code=404, detail=f"Card {request.card_id} not found")
-
+        # 5. Получаем главный DOCX файл из карточки
         card_files = card.get('files', [])
         files_data = file_service.get_outgoing_files(request.card_id, card_files)
         main_docx = files_data.get('main_docx')
@@ -116,7 +121,7 @@ async def prepare_registration(
                 detail="Main DOCX file not found. File name must start with 'исх_'"
             )
 
-        # 5. Скачиваем DOCX (в mock режиме используем mock данные)
+        # 6. Скачиваем DOCX (в mock режиме используем mock данные)
         if file_service.use_mock:
             # В mock режиме создаем простой DOCX с плейсхолдерами
             print(f"[Mock] Creating mock DOCX with placeholders")
@@ -126,7 +131,7 @@ async def prepare_registration(
             docx_url = main_docx.get('path')
             docx_bytes = await docx_service.download_docx_from_url(docx_url)
 
-        # 6. Заменяем плейсхолдеры
+        # 7. Заменяем плейсхолдеры
         modified_docx = docx_service.replace_placeholders(
             docx_bytes,
             formatted_number,

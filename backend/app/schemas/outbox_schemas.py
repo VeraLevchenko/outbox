@@ -6,7 +6,6 @@ from datetime import date
 class RegisterRequest(BaseModel):
     """Запрос на регистрацию документа"""
     card_id: int
-    to_whom: str  # Кому адресовано письмо
 
 
 class RegisterResponse(BaseModel):

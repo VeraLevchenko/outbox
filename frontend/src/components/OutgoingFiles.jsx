@@ -62,20 +62,14 @@ const OutgoingFiles = ({ cardId }) => {
       return;
     }
 
-    // Запрашиваем "Кому" у пользователя
-    const toWhom = prompt('Укажите адресата (Кому):');
-    if (!toWhom) {
-      return; // Пользователь отменил
-    }
-
     try {
       setRegistering(true);
       setRegistrationResult(null);
 
-      const response = await outboxApi.prepareRegistration(cardId, toWhom);
+      // Поле "Кому" берется из названия карточки (title)
+      // Исполнитель используется только для генерации номера
+      const response = await outboxApi.prepareRegistration(cardId);
       setRegistrationResult(response.data);
-
-      alert(`Успешно!\n${response.data.message}`);
 
       // TODO: Следующие шаги - конвертация в PDF и подписание
 
