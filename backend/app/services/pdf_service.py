@@ -69,6 +69,9 @@ class PdfService:
 
             # Конвертируем в PDF используя LibreOffice headless
             try:
+                print(f"[PdfService] Starting conversion with: {self.libreoffice_path}")
+                print(f"[PdfService] Input DOCX size: {len(docx_bytes)} bytes")
+
                 result = subprocess.run(
                     [
                         self.libreoffice_path,
@@ -79,8 +82,14 @@ class PdfService:
                     ],
                     capture_output=True,
                     text=True,
-                    timeout=30
+                    timeout=120  # Увеличиваем timeout до 120 секунд
                 )
+
+                print(f"[PdfService] LibreOffice exit code: {result.returncode}")
+                if result.stdout:
+                    print(f"[PdfService] LibreOffice stdout: {result.stdout}")
+                if result.stderr:
+                    print(f"[PdfService] LibreOffice stderr: {result.stderr}")
 
                 if result.returncode != 0:
                     raise RuntimeError(f"LibreOffice conversion failed: {result.stderr}")
@@ -97,8 +106,10 @@ class PdfService:
                 return pdf_bytes
 
             except subprocess.TimeoutExpired:
-                raise RuntimeError("PDF conversion timeout")
+                print(f"[PdfService] ERROR: Conversion timeout after 120 seconds")
+                raise RuntimeError("PDF conversion timeout after 120 seconds")
             except Exception as e:
+                print(f"[PdfService] ERROR: {type(e).__name__}: {str(e)}")
                 raise RuntimeError(f"PDF conversion error: {str(e)}")
 
 
