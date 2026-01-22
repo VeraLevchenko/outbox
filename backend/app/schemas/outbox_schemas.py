@@ -6,6 +6,7 @@ from datetime import date
 class RegisterRequest(BaseModel):
     """Запрос на регистрацию документа"""
     card_id: int
+    selected_file_name: str  # Имя файла, выбранного в просмотрщике
 
 
 class RegisterResponse(BaseModel):

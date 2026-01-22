@@ -68,13 +68,25 @@ const OutgoingFiles = ({ cardId }) => {
       return;
     }
 
+    if (!selectedFile) {
+      alert('Выберите файл для регистрации в просмотрщике.');
+      return;
+    }
+
+    // Проверяем, что выбранный файл - DOCX
+    if (!selectedFile.name.toLowerCase().endsWith('.docx')) {
+      alert(`Файл "${selectedFile.name}" не является DOCX документом.\n\nРегистрировать можно только DOCX файлы с полями для заполнения ({{outgoing_no}}, {{outgoing_date}}, {{stamp}}).`);
+      return;
+    }
+
     try {
       setRegistering(true);
       setRegistrationResult(null);
 
       // Поле "Кому" берется из названия карточки (title)
       // Исполнитель используется только для генерации номера
-      const response = await outboxApi.prepareRegistration(cardId);
+      // Подписывается файл, который открыт в просмотрщике
+      const response = await outboxApi.prepareRegistration(cardId, selectedFile.name);
       setRegistrationResult(response.data);
 
       // TODO: Следующие шаги - конвертация в PDF и подписание
@@ -192,26 +204,8 @@ const OutgoingFiles = ({ cardId }) => {
           </div>
         )}
 
-        {/* Предупреждение, если нет главного DOCX */}
-        {!mainDocx && !loading && (
-          <div style={{
-            padding: '12px 16px',
-            background: '#fef3c7',
-            borderBottom: '2px solid #e5e7eb',
-            fontSize: '13px',
-            color: '#92400e'
-          }}>
-            <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-              Главный DOCX не найден
-            </div>
-            <div style={{ fontSize: '12px' }}>
-              Файл должен начинаться с "исх_"
-            </div>
-          </div>
-        )}
-
         {/* Кнопка "Зарегистрировать и подписать" */}
-        {mainDocx && executor && (
+        {executor && (
           <div style={{
             padding: '16px',
             background: '#ffffff',
