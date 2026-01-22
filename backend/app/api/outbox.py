@@ -12,6 +12,8 @@ from app.services.kaiten_service import kaiten_service
 from app.services.file_service import file_service
 from app.services.docx_service import docx_service
 from app.services.config_service import config_service
+from app.services.pdf_service import pdf_service
+from app.services.cryptopro_service import cryptopro_service
 from app.api.auth import get_current_user
 from app.api.journal import get_next_outgoing_number
 
@@ -160,30 +162,78 @@ async def prepare_registration(
                 detail=f"Файл '{request.selected_file_name}' не содержит полей для заполнения ({{{{outgoing_no}}}}, {{{{outgoing_date}}}}, {{{{stamp}}}}). Регистрировать можно только шаблоны с полями."
             )
 
-        # 10. Заменяем плейсхолдеры
+        # 10. Заменяем плейсхолдеры (пока без данных сертификата)
         modified_docx = docx_service.replace_placeholders(
             docx_bytes,
             formatted_number,
             outgoing_date,
-            certificate_data=None  # TODO: получить данные сертификата из CryptoPro
+            certificate_data=None  # Сначала создаем без подписи
         )
 
-        # 11. Сохраняем зарегистрированный файл во временное хранилище
+        # 11. Конвертируем DOCX в PDF
+        print(f"[Outbox] Converting DOCX to PDF...")
+        try:
+            pdf_bytes = pdf_service.convert_docx_to_pdf(modified_docx)
+            print(f"[Outbox] PDF created: {len(pdf_bytes)} bytes")
+        except Exception as e:
+            print(f"[Outbox] PDF conversion error: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Ошибка конвертации в PDF: {str(e)}"
+            )
+
+        # 12. Подписываем PDF через КриптоПро
+        print(f"[Outbox] Signing PDF with CryptoPro...")
+        try:
+            signature_bytes, cert_info = cryptopro_service.sign_pdf(pdf_bytes)
+            print(f"[Outbox] PDF signed: {len(signature_bytes)} bytes signature")
+        except Exception as e:
+            print(f"[Outbox] Signing error: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Ошибка подписания: {str(e)}"
+            )
+
+        # 13. Обновляем DOCX с данными сертификата (для визуализации штампа ЭЦП)
+        modified_docx_with_stamp = docx_service.replace_placeholders(
+            docx_bytes,
+            formatted_number,
+            outgoing_date,
+            certificate_data=cert_info
+        )
+
+        # 14. Сохраняем файлы во временное хранилище
         file_id = str(uuid.uuid4())
         # Формируем имя файла: номер_дата_оригинальное_имя
-        safe_number = formatted_number.replace('/', '_').replace('\\', '_')
+        safe_number = formatted_number.replace('/', '_').replace('\\', '_').replace('-', '_')
         safe_date = outgoing_date.replace('.', '_')
-        temp_filename = f"{safe_number}_{safe_date}_{request.selected_file_name}"
-        temp_file_path = TEMP_FILES_DIR / f"{file_id}_{temp_filename}"
+        base_name = request.selected_file_name.rsplit('.', 1)[0]  # без расширения
 
-        # Сохраняем файл
-        with open(temp_file_path, 'wb') as f:
-            f.write(modified_docx)
+        # Сохраняем DOCX с штампом
+        docx_filename = f"{safe_number}_{safe_date}_{base_name}.docx"
+        docx_file_path = TEMP_FILES_DIR / f"{file_id}_{docx_filename}"
+        with open(docx_file_path, 'wb') as f:
+            f.write(modified_docx_with_stamp)
 
-        print(f"[Outbox] Registered file saved: {temp_file_path}")
+        # Сохраняем PDF
+        pdf_filename = f"{safe_number}_{safe_date}_{base_name}.pdf"
+        pdf_file_path = TEMP_FILES_DIR / f"{file_id}_{pdf_filename}"
+        with open(pdf_file_path, 'wb') as f:
+            f.write(pdf_bytes)
 
-        # URL для скачивания зарегистрированного файла
-        download_url = f"/api/outbox/download/{file_id}_{temp_filename}"
+        # Сохраняем подпись
+        sig_filename = f"{safe_number}_{safe_date}_{base_name}.pdf.sig"
+        sig_file_path = TEMP_FILES_DIR / f"{file_id}_{sig_filename}"
+        with open(sig_file_path, 'wb') as f:
+            f.write(signature_bytes)
+
+        print(f"[Outbox] Files saved:")
+        print(f"  - DOCX: {docx_file_path}")
+        print(f"  - PDF: {pdf_file_path}")
+        print(f"  - SIG: {sig_file_path}")
+
+        # URL для скачивания подписанного PDF
+        download_url = f"/api/outbox/download/{file_id}_{pdf_filename}"
 
         return RegisterResponse(
             outgoing_no=next_number,
