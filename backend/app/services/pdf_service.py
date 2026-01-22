@@ -10,6 +10,10 @@ class PdfService:
 
     def __init__(self):
         self.libreoffice_path = self._find_libreoffice()
+        if self.libreoffice_path:
+            print(f"[PdfService] LibreOffice found at: {self.libreoffice_path}")
+        else:
+            print("[PdfService] WARNING: LibreOffice not found!")
 
     def _find_libreoffice(self) -> Optional[str]:
         """Найти путь к LibreOffice"""
