@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { filesApi, kaitenApi } from '../services/api';
+import { filesApi, kaitenApi, outboxApi } from '../services/api';
 import FileViewer from './FileViewer';
 
 const OutgoingFiles = ({ cardId }) => {
@@ -10,6 +10,8 @@ const OutgoingFiles = ({ cardId }) => {
   const [error, setError] = useState(null);
   const [executor, setExecutor] = useState(null);
   const [executorLoading, setExecutorLoading] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [registrationResult, setRegistrationResult] = useState(null);
 
   useEffect(() => {
     if (cardId) {
@@ -51,6 +53,31 @@ const OutgoingFiles = ({ cardId }) => {
       setExecutor(null);
     } finally {
       setExecutorLoading(false);
+    }
+  };
+
+  const handleRegisterAndSign = async () => {
+    if (!executor) {
+      alert('Исполнитель не найден. Убедитесь, что в карточке Kaiten есть участник с типом 2.');
+      return;
+    }
+
+    try {
+      setRegistering(true);
+      setRegistrationResult(null);
+
+      // Поле "Кому" берется из названия карточки (title)
+      // Исполнитель используется только для генерации номера
+      const response = await outboxApi.prepareRegistration(cardId);
+      setRegistrationResult(response.data);
+
+      // TODO: Следующие шаги - конвертация в PDF и подписание
+
+    } catch (err) {
+      console.error('Ошибка регистрации:', err);
+      alert('Ошибка регистрации: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setRegistering(false);
     }
   };
 
@@ -129,6 +156,65 @@ const OutgoingFiles = ({ cardId }) => {
             color: '#9ca3af'
           }}>
             Загрузка исполнителя...
+          </div>
+        )}
+
+        {/* Кнопка "Зарегистрировать и подписать" */}
+        {mainDocx && executor && (
+          <div style={{
+            padding: '16px',
+            background: '#ffffff',
+            borderBottom: '2px solid #e5e7eb'
+          }}>
+            <button
+              onClick={handleRegisterAndSign}
+              disabled={registering}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                background: registering ? '#9ca3af' : '#4b5563',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: registering ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (!registering) {
+                  e.currentTarget.style.background = '#374151';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!registering) {
+                  e.currentTarget.style.background = '#4b5563';
+                }
+              }}
+            >
+              {registering ? 'Регистрация...' : 'Зарегистрировать и подписать'}
+            </button>
+          </div>
+        )}
+
+        {/* Результат регистрации */}
+        {registrationResult && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#f0fdf4',
+            borderBottom: '2px solid #e5e7eb',
+            fontSize: '13px'
+          }}>
+            <div style={{
+              color: '#166534',
+              fontWeight: '600',
+              marginBottom: '4px'
+            }}>
+              Документ зарегистрирован
+            </div>
+            <div style={{ color: '#15803d', fontSize: '12px' }}>
+              № {registrationResult.formatted_number} от {registrationResult.outgoing_date}
+            </div>
           </div>
         )}
 

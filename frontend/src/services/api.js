@@ -75,4 +75,10 @@ export const journalApi = {
   getNextNumber: () => api.get('/api/journal/next-number'),
 };
 
+// API методы для outbox (регистрация и подписание)
+export const outboxApi = {
+  prepareRegistration: (cardId) =>
+    api.post('/api/outbox/prepare-registration', { card_id: cardId }),
+};
+
 export default api;
