@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 from datetime import date
+from pathlib import Path
 import io
+import uuid
 
 from app.models.database import SessionLocal
 from app.schemas.outbox_schemas import RegisterRequest, RegisterResponse
@@ -14,6 +16,10 @@ from app.api.auth import get_current_user
 from app.api.journal import get_next_outgoing_number
 
 router = APIRouter(prefix="/api/outbox", tags=["outbox"])
+
+# Директория для временных зарегистрированных файлов
+TEMP_FILES_DIR = Path(__file__).parent.parent.parent / "temp_files"
+TEMP_FILES_DIR.mkdir(exist_ok=True)
 
 
 def get_db():
@@ -162,8 +168,22 @@ async def prepare_registration(
             certificate_data=None  # TODO: получить данные сертификата из CryptoPro
         )
 
-        # TODO: Сохранить modified_docx во временное хранилище для последующего использования
-        # Пока возвращаем только информацию
+        # 11. Сохраняем зарегистрированный файл во временное хранилище
+        file_id = str(uuid.uuid4())
+        # Формируем имя файла: номер_дата_оригинальное_имя
+        safe_number = formatted_number.replace('/', '_').replace('\\', '_')
+        safe_date = outgoing_date.replace('.', '_')
+        temp_filename = f"{safe_number}_{safe_date}_{request.selected_file_name}"
+        temp_file_path = TEMP_FILES_DIR / f"{file_id}_{temp_filename}"
+
+        # Сохраняем файл
+        with open(temp_file_path, 'wb') as f:
+            f.write(modified_docx)
+
+        print(f"[Outbox] Registered file saved: {temp_file_path}")
+
+        # URL для скачивания зарегистрированного файла
+        download_url = f"/api/outbox/download/{file_id}_{temp_filename}"
 
         return RegisterResponse(
             outgoing_no=next_number,
@@ -171,8 +191,8 @@ async def prepare_registration(
             outgoing_date=outgoing_date,
             executor=executor_name,
             executor_id=executor_id,
-            docx_preview_url=None,  # TODO: добавить URL для предпросмотра
-            message=f"Документ готов к регистрации. Номер: {formatted_number} от {outgoing_date}"
+            docx_preview_url=download_url,
+            message=f"Документ зарегистрирован. Номер: {formatted_number} от {outgoing_date}"
         )
 
     except HTTPException:
