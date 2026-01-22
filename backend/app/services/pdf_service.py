@@ -76,13 +76,21 @@ class PdfService:
                     [
                         self.libreoffice_path,
                         '--headless',
+                        '--invisible',
+                        '--nocrashreport',
+                        '--nodefault',
+                        '--nofirststartwizard',
+                        '--nolockcheck',
+                        '--nologo',
+                        '--norestore',
                         '--convert-to', 'pdf',
                         '--outdir', str(temp_dir_path),
                         str(docx_file)
                     ],
                     capture_output=True,
                     text=True,
-                    timeout=120  # Увеличиваем timeout до 120 секунд
+                    timeout=120,
+                    env={**os.environ, 'HOME': str(temp_dir_path)}  # Изолированный HOME для избежания конфликтов
                 )
 
                 print(f"[PdfService] LibreOffice exit code: {result.returncode}")
