@@ -74,14 +74,19 @@ class PdfService:
             print(f"[PdfService] Input DOCX size: {len(docx_bytes)} bytes")
             print(f"[PdfService] Temp directory: {temp_dir_path}")
 
-            # Окружение для отключения Java и работы в headless режиме
+            # Создаем директорию для профиля LibreOffice
+            profile_dir = temp_dir_path / ".libreoffice_profile"
+            profile_dir.mkdir(exist_ok=True)
+
+            # Окружение для работы в headless режиме БЕЗ Java
             env = os.environ.copy()
             env.update({
-                'HOME': str(temp_dir_path),
                 'SAL_USE_VCLPLUGIN': 'svp',  # Headless plugin
-                'JAVA_DISABLE': '1',
-                'NO_JAVA': '1',
             })
+            # Удаляем все Java-related переменные
+            for key in list(env.keys()):
+                if 'JAVA' in key.upper():
+                    del env[key]
 
             result = subprocess.run(
                 [
@@ -94,6 +99,7 @@ class PdfService:
                     '--nolockcheck',
                     '--nologo',
                     '--norestore',
+                    '-env:UserInstallation=file://' + str(profile_dir.absolute()),  # Используем отдельный профиль
                     '--convert-to', 'pdf',
                     '--outdir', str(temp_dir_path),
                     str(docx_file)
