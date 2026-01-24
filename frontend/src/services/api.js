@@ -82,6 +82,8 @@ export const outboxApi = {
       card_id: cardId,
       selected_file_name: selectedFileName
     }),
+  uploadClientSignature: (data) =>
+    api.post('/api/outbox/upload-client-signature', data),
 };
 
 export default api;
