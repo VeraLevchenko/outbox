@@ -17,4 +17,6 @@ class RegisterResponse(BaseModel):
     executor: str
     executor_id: int
     docx_preview_url: Optional[str] = None
+    sign_url: Optional[str] = None  # URL для подписания документа
+    file_id: Optional[str] = None  # ID файла для подписания
     message: str

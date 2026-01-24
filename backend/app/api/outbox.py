@@ -184,25 +184,10 @@ async def prepare_registration(
                 detail=f"Ошибка конвертации в PDF: {str(e)}"
             )
 
-        # 12. Подписываем PDF через КриптоПро
-        print(f"[Outbox] Signing PDF with CryptoPro...")
-        try:
-            signature_bytes, cert_info = cryptopro_service.sign_pdf(pdf_bytes)
-            print(f"[Outbox] PDF signed: {len(signature_bytes)} bytes signature")
-        except Exception as e:
-            print(f"[Outbox] Signing error: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Ошибка подписания: {str(e)}"
-            )
-
-        # 13. Обновляем DOCX с данными сертификата (для визуализации штампа ЭЦП)
-        modified_docx_with_stamp = docx_service.replace_placeholders(
-            docx_bytes,
-            formatted_number,
-            outgoing_date,
-            certificate_data=cert_info
-        )
+        # 12. НЕ подписываем на сервере - подпись будет создана на клиенте через браузер
+        # Вместо этого просто используем DOCX без штампа ЭЦП
+        print(f"[Outbox] PDF ready for client-side signing")
+        modified_docx_with_stamp = modified_docx  # Используем DOCX без штампа
 
         # 14. Сохраняем файлы во временное хранилище
         # Убеждаемся, что директория существует
@@ -218,31 +203,30 @@ async def prepare_registration(
         # Заменяем пробелы, скобки и другие проблемные символы
         safe_base_name = base_name.replace(' ', '_').replace('(', '').replace(')', '').replace('[', '').replace(']', '')
 
-        # Сохраняем DOCX с штампом
+        # Сохраняем DOCX
         docx_filename = f"{safe_number}_{safe_date}_{safe_base_name}.docx"
         docx_file_path = TEMP_FILES_DIR / f"{file_id}_{docx_filename}"
         with open(docx_file_path, 'wb') as f:
             f.write(modified_docx_with_stamp)
 
-        # Сохраняем PDF
+        # Сохраняем PDF (без подписи - будет подписан на клиенте)
         pdf_filename = f"{safe_number}_{safe_date}_{safe_base_name}.pdf"
         pdf_file_path = TEMP_FILES_DIR / f"{file_id}_{pdf_filename}"
         with open(pdf_file_path, 'wb') as f:
             f.write(pdf_bytes)
 
-        # Сохраняем подпись
-        sig_filename = f"{safe_number}_{safe_date}_{safe_base_name}.pdf.sig"
-        sig_file_path = TEMP_FILES_DIR / f"{file_id}_{sig_filename}"
-        with open(sig_file_path, 'wb') as f:
-            f.write(signature_bytes)
+        # Подпись (.sig) НЕ создаём здесь - будет создана на клиенте через браузер
 
         print(f"[Outbox] Files saved:")
         print(f"  - DOCX: {docx_file_path}")
         print(f"  - PDF: {pdf_file_path}")
-        print(f"  - SIG: {sig_file_path}")
+        print(f"  - SIG: будет создана на клиенте")
 
-        # URL для скачивания подписанного PDF
+        # URL для скачивания PDF
         download_url = f"/api/outbox/download/{file_id}_{pdf_filename}"
+
+        # URL для подписания (редирект на sign.html)
+        sign_url = f"/sign.html?fileId={file_id}&pdfFile={file_id}_{pdf_filename}"
 
         return RegisterResponse(
             outgoing_no=next_number,
@@ -251,7 +235,9 @@ async def prepare_registration(
             executor=executor_name,
             executor_id=executor_id,
             docx_preview_url=download_url,
-            message=f"Документ зарегистрирован. Номер: {formatted_number} от {outgoing_date}"
+            sign_url=sign_url,
+            file_id=file_id,
+            message=f"Документ готов к подписанию. Номер: {formatted_number} от {outgoing_date}"
         )
 
     except HTTPException:
