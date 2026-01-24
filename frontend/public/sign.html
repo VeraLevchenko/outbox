@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>КриптоПро ЭЦП - Подписание документа</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 24px;
+        }
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border-left: 4px solid #6c757d;
+        }
+        .status-box.success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .status-box.error {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        .status-box.warning {
+            border-color: #ffc107;
+            background: #fff3cd;
+        }
+        .status-box.info {
+            border-color: #17a2b8;
+            background: #d1ecf1;
+        }
+        .status-label {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .status-text {
+            font-size: 14px;
+            word-break: break-word;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .cert-select {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            background: white;
+        }
+        .cert-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin-bottom: 4px;
+        }
+        .log-entry.error { color: #f48771; }
+        .log-entry.success { color: #89d185; }
+        .log-entry.info { color: #6bb3f8; }
+        .hidden { display: none; }
+        .step-indicator {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .step {
+            flex: 1;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+        }
+        .step.active { background: #667eea; }
+        .step.done { background: #28a745; }
+        .result-files {
+            margin-top: 16px;
+        }
+        .result-files a {
+            display: block;
+            padding: 8px 12px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            text-decoration: none;
+            color: #333;
+        }
+        .result-files a:hover {
+            background: #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 КриптоПро ЭЦП</h1>
+        <p class="subtitle">Подписание документа</p>
+
+        <div class="step-indicator">
+            <div class="step" id="step1"></div>
+            <div class="step" id="step2"></div>
+            <div class="step" id="step3"></div>
+            <div class="step" id="step4"></div>
+        </div>
+
+        <div id="pluginStatus" class="status-box">
+            <div class="status-label">Статус плагина</div>
+            <div class="status-text" id="pluginStatusText">Проверка...</div>
+        </div>
+
+        <div id="certSection" class="hidden">
+            <label for="certSelect" style="display: block; margin-bottom: 8px; font-weight: 500;">
+                Выберите сертификат КЭП:
+            </label>
+            <select id="certSelect" class="cert-select">
+                <option value="">-- Загрузка сертификатов... --</option>
+            </select>
+        </div>
+
+        <button id="signBtn" class="btn btn-primary" disabled>
+            🔏 Подписать документ
+        </button>
+
+        <div id="resultSection" class="hidden">
+            <div class="status-box success">
+                <div class="status-label">✅ Подпись создана!</div>
+                <div class="status-text" id="resultText"></div>
+            </div>
+            <div class="result-files" id="resultFiles"></div>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <!-- Официальный API КриптоПро из CDN -->
+    <script src="https://www.cryptopro.ru/sites/default/files/products/cades/cadesplugin_api.js"></script>
+
+    <script>
+        // ============ ПОЛУЧАЕМ ПАРАМЕТРЫ ИЗ URL ============
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileId = urlParams.get('fileId');
+        const pdfFile = urlParams.get('pdfFile');
+
+        if (!fileId || !pdfFile) {
+            alert('Ошибка: не указаны параметры fileId и pdfFile');
+        }
+
+        // ============ ЛОГИРОВАНИЕ ============
+        const logEl = document.getElementById('log');
+        function log(msg, type = '') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(msg);
+        }
+
+        // ============ UI HELPERS ============
+        function setStep(n) {
+            for (let i = 1; i <= 4; i++) {
+                const el = document.getElementById('step' + i);
+                el.classList.remove('active', 'done');
+                if (i < n) el.classList.add('done');
+                if (i === n) el.classList.add('active');
+            }
+        }
+
+        function setPluginStatus(text, type) {
+            const box = document.getElementById('pluginStatus');
+            const textEl = document.getElementById('pluginStatusText');
+            box.className = 'status-box ' + type;
+            textEl.textContent = text;
+        }
+
+        // ============ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ============
+        let certificates = [];
+        let selectedCert = null;
+        const API_BASE = window.location.origin;
+
+        // ============ ИНИЦИАЛИЗАЦИЯ ПЛАГИНА ============
+        async function initPlugin() {
+            log('Начинаю инициализацию плагина КриптоПро...', 'info');
+            setStep(1);
+
+            try {
+                if (typeof cadesplugin === 'undefined') {
+                    throw new Error('Плагин КриптоПро ЭЦП не найден. Установите с https://www.cryptopro.ru/products/cades/plugin');
+                }
+
+                log('Плагин найден, ожидаю готовности...', 'info');
+
+                // Ожидание инициализации плагина
+                let pluginReady = false;
+                let attempts = 0;
+                const maxAttempts = 30;
+
+                while (!pluginReady && attempts < maxAttempts) {
+                    try {
+                        attempts++;
+                        const testAbout = await cadesplugin.CreateObjectAsync("CAdESCOM.About");
+                        pluginReady = true;
+
+                        let version = 'unknown';
+                        try {
+                            version = await testAbout.Version;
+                            log(`КриптоПро CSP: ${version}`, 'success');
+                        } catch (err) {
+                            log('Версия CSP недоступна', 'info');
+                        }
+
+                        setPluginStatus(`Плагин активен. CSP: ${version}`, 'success');
+                        setStep(2);
+
+                        await loadCertificates();
+
+                    } catch (err) {
+                        if (attempts < maxAttempts) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        } else {
+                            throw err;
+                        }
+                    }
+                }
+
+                if (!pluginReady) {
+                    throw new Error('Не удалось инициализировать плагин за 30 секунд');
+                }
+
+            } catch (err) {
+                log('ОШИБКА: ' + err.message, 'error');
+                console.error('Детали ошибки:', err);
+                setPluginStatus('Ошибка: ' + err.message, 'error');
+
+                if (err.message.includes('не найден')) {
+                    log('💡 Установите плагин: https://www.cryptopro.ru/products/cades/plugin', 'info');
+                    log('💡 После установки перезапустите браузер полностью', 'info');
+                }
+            }
+        }
+
+        // ============ ЗАГРУЗКА СЕРТИФИКАТОВ ============
+        async function loadCertificates() {
+            log('Загружаю список сертификатов КЭП...', 'info');
+
+            try {
+                const store = await cadesplugin.CreateObjectAsync("CAdESCOM.Store");
+                await store.Open(
+                    cadesplugin.CAPICOM_CURRENT_USER_STORE,
+                    cadesplugin.CAPICOM_MY_STORE,
+                    cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED
+                );
+
+                const certs = await store.Certificates;
+                const count = await certs.Count;
+
+                log(`Найдено сертификатов: ${count}`, 'info');
+
+                if (count === 0) {
+                    setPluginStatus('Сертификаты КЭП не найдены в хранилище', 'warning');
+                    log('💡 Установите сертификат КЭП в хранилище "Личные"', 'info');
+                    return;
+                }
+
+                certificates = [];
+                const select = document.getElementById('certSelect');
+                select.innerHTML = '<option value="">-- Выберите сертификат КЭП --</option>';
+
+                for (let i = 1; i <= count; i++) {
+                    try {
+                        const cert = await certs.Item(i);
+                        const subjectName = await cert.SubjectName;
+                        const validFrom = await cert.ValidFromDate;
+                        const validTo = await cert.ValidToDate;
+                        const thumbprint = await cert.Thumbprint;
+                        const hasPrivateKey = await cert.HasPrivateKey();
+                        const isValid = await cert.IsValid();
+                        const isValidResult = await isValid.Result;
+
+                        const cnMatch = subjectName.match(/CN=([^,]+)/);
+                        const cn = cnMatch ? cnMatch[1] : subjectName.substring(0, 50);
+
+                        const certInfo = {
+                            index: i,
+                            thumbprint: thumbprint,
+                            cn: cn,
+                            subjectName: subjectName,
+                            validFrom: new Date(validFrom),
+                            validTo: new Date(validTo),
+                            hasPrivateKey: hasPrivateKey,
+                            isValid: isValidResult
+                        };
+
+                        certificates.push(certInfo);
+
+                        let optionText = cn;
+                        if (!hasPrivateKey) optionText += ' [НЕТ КЛЮЧА]';
+                        if (!isValidResult) optionText += ' [НЕДЕЙСТВИТЕЛЕН]';
+                        optionText += ` (до ${certInfo.validTo.toLocaleDateString()})`;
+
+                        const option = document.createElement('option');
+                        option.value = thumbprint;
+                        option.textContent = optionText;
+                        option.disabled = !hasPrivateKey || !isValidResult;
+                        select.appendChild(option);
+
+                        const status = hasPrivateKey && isValidResult ? '✓ готов' : '✗ не подходит';
+                        const statusType = hasPrivateKey && isValidResult ? 'success' : 'error';
+                        log(`  ${i}. ${cn} - ${status}`, statusType);
+                    } catch (certErr) {
+                        log(`  Ошибка при обработке сертификата ${i}: ${certErr.message}`, 'error');
+                    }
+                }
+
+                await store.Close();
+
+                const validCerts = certificates.filter(c => c.hasPrivateKey && c.isValid);
+                if (validCerts.length > 0) {
+                    document.getElementById('certSection').classList.remove('hidden');
+                    setStep(3);
+
+                    select.addEventListener('change', (e) => {
+                        selectedCert = certificates.find(c => c.thumbprint === e.target.value);
+                        document.getElementById('signBtn').disabled = !selectedCert;
+                        if (selectedCert) {
+                            log(`Выбран сертификат: ${selectedCert.cn}`, 'info');
+                        }
+                    });
+                } else {
+                    log('⚠️ Нет действительных сертификатов с закрытыми ключами', 'warning');
+                    setPluginStatus('Нет подходящих сертификатов для подписи', 'warning');
+                }
+
+            } catch (err) {
+                log('Ошибка загрузки сертификатов: ' + err.message, 'error');
+                console.error('Детали ошибки:', err);
+                setPluginStatus('Ошибка доступа к хранилищу сертификатов', 'error');
+            }
+        }
+
+        // ============ ПОДПИСАНИЕ ============
+        async function signDocument() {
+            if (!selectedCert) {
+                log('Сертификат не выбран!', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('signBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Подписание...';
+
+            try {
+                log('=== НАЧАЛО ПОДПИСАНИЯ ===', 'info');
+                setStep(4);
+
+                // 1. Получаем PDF
+                log(`Загружаю PDF: ${pdfFile}...`, 'info');
+                const pdfResponse = await fetch(`${API_BASE}/api/outbox/download/${pdfFile}`);
+                if (!pdfResponse.ok) {
+                    throw new Error(`Ошибка загрузки PDF: ${pdfResponse.status}`);
+                }
+                const pdfBlob = await pdfResponse.blob();
+                const pdfArrayBuffer = await pdfBlob.arrayBuffer();
+                log(`PDF загружен, размер: ${pdfArrayBuffer.byteLength} байт`, 'success');
+
+                // 2. Конвертируем в Base64
+                log('Конвертирую в Base64...', 'info');
+                const pdfBase64 = arrayBufferToBase64(pdfArrayBuffer);
+                log(`Base64 готов, длина: ${pdfBase64.length}`, 'success');
+
+                // 3. Получаем сертификат
+                log('Получаю сертификат из хранилища...', 'info');
+                const store = await cadesplugin.CreateObjectAsync("CAdESCOM.Store");
+                await store.Open(
+                    cadesplugin.CAPICOM_CURRENT_USER_STORE,
+                    cadesplugin.CAPICOM_MY_STORE,
+                    cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED
+                );
+
+                const certs = await store.Certificates;
+                const foundCerts = await certs.Find(
+                    cadesplugin.CAPICOM_CERTIFICATE_FIND_SHA1_HASH,
+                    selectedCert.thumbprint
+                );
+
+                const foundCount = await foundCerts.Count;
+                if (foundCount === 0) {
+                    throw new Error('Сертификат не найден по отпечатку');
+                }
+
+                const cert = await foundCerts.Item(1);
+                await store.Close();
+                log('✓ Сертификат получен', 'success');
+
+                // 4. Создаём подпись CAdES-BES
+                log('Создаю открепленную подпись (CAdES-BES)...', 'info');
+
+                const signer = await cadesplugin.CreateObjectAsync("CAdESCOM.CPSigner");
+                await signer.propset_Certificate(cert);
+                await signer.propset_CheckCertificate(true);
+
+                const signedData = await cadesplugin.CreateObjectAsync("CAdESCOM.CadesSignedData");
+                await signedData.propset_ContentEncoding(cadesplugin.CADESCOM_BASE64_TO_BINARY);
+                await signedData.propset_Content(pdfBase64);
+
+                log('Вызываю SignCades (может появиться окно ввода PIN)...', 'info');
+                const signature = await signedData.SignCades(
+                    signer,
+                    cadesplugin.CADESCOM_CADES_BES,
+                    true  // detached = true (открепленная подпись)
+                );
+
+                log('✓ Подпись создана!', 'success');
+                log(`Размер подписи: ${signature.length} символов Base64`, 'info');
+
+                // 5. Отправляем на сервер
+                log('Отправляю подпись на сервер...', 'info');
+
+                const uploadResponse = await fetch(`${API_BASE}/api/outbox/upload-client-signature`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    },
+                    body: JSON.stringify({
+                        file_id: fileId,
+                        signature: signature,
+                        thumbprint: selectedCert.thumbprint,
+                        cn: selectedCert.cn
+                    })
+                });
+
+                if (!uploadResponse.ok) {
+                    const errText = await uploadResponse.text();
+                    throw new Error(`Ошибка сохранения: ${uploadResponse.status} - ${errText}`);
+                }
+
+                const result = await uploadResponse.json();
+                log('✓ Подпись сохранена на сервере!', 'success');
+                log(`PDF: ${result.pdf_file}`, 'success');
+                log(`SIG: ${result.sig_file}`, 'success');
+
+                // 6. Показываем результат
+                document.getElementById('resultSection').classList.remove('hidden');
+                document.getElementById('resultText').textContent =
+                    `Документ подписан сертификатом "${selectedCert.cn}"`;
+
+                document.getElementById('resultFiles').innerHTML = `
+                    <a href="${API_BASE}/api/outbox/download/${result.pdf_file}" download>📄 Скачать PDF</a>
+                    <a href="${API_BASE}/api/outbox/download/${result.sig_file}" download>🔏 Скачать подпись (.sig)</a>
+                `;
+
+                log('=== ПОДПИСАНИЕ ЗАВЕРШЕНО УСПЕШНО ===', 'success');
+                log('', 'info');
+                log('📋 Проверка подписи:', 'info');
+                log('1. КриптоАРМ или команда: cryptcp -verify -detached file.sig file.pdf', 'info');
+                log('2. Или на сайте: https://www.gosuslugi.ru/crt', 'info');
+
+            } catch (err) {
+                log('ОШИБКА ПОДПИСАНИЯ: ' + err.message, 'error');
+                console.error('Детали ошибки:', err);
+
+                // Диагностика типичных ошибок
+                const errorCode = err.message.match(/0x[0-9A-Fa-f]+/);
+                if (errorCode) {
+                    const code = errorCode[0];
+                    if (code === '0x8010006E') {
+                        log('💡 Неверный PIN-код или ключ заблокирован', 'info');
+                    } else if (code === '0x80090020') {
+                        log('💡 Не найден закрытый ключ для сертификата', 'info');
+                    } else if (code === '0x800B0109') {
+                        log('💡 Цепочка сертификатов не может быть построена', 'info');
+                        log('💡 Установите корневые сертификаты УЦ', 'info');
+                    } else if (code === '0x800B010A') {
+                        log('💡 Нет доверенного корневого сертификата УЦ', 'info');
+                        log('💡 Скачайте и установите корневые сертификаты с сайта вашего УЦ', 'info');
+                    }
+                }
+
+                if (err.message.includes('Отмен') || err.message.includes('canceled')) {
+                    log('💡 Операция отменена пользователем', 'info');
+                }
+
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔏 Подписать документ';
+            }
+        }
+
+        // ============ УТИЛИТЫ ============
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // ============ СТАРТ ============
+        document.getElementById('signBtn').addEventListener('click', signDocument);
+
+        // Запуск после загрузки страницы
+        window.addEventListener('load', () => {
+            setTimeout(initPlugin, 2000);
+        });
+    </script>
+</body>
+</html>
