@@ -14,11 +14,13 @@ const OutgoingFiles = ({ cardId }) => {
   const [registering, setRegistering] = useState(false);
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showSigningModal, setShowSigningModal] = useState(false);
+  const [cardTitle, setCardTitle] = useState('');
 
   useEffect(() => {
     if (cardId) {
       loadFiles();
       loadExecutor();
+      loadCardTitle();
     }
   }, [cardId]);
 
@@ -61,6 +63,22 @@ const OutgoingFiles = ({ cardId }) => {
       setExecutor(null);
     } finally {
       setExecutorLoading(false);
+    }
+  };
+
+  const loadCardTitle = async () => {
+    try {
+      console.log('[OutgoingFiles] Loading card title for card:', cardId);
+      // Используем существующий метод из filesApi для получения файлов
+      // В ответе обычно есть информация о карточке
+      const response = await filesApi.getOutgoingFiles(cardId);
+      // Если в ответе есть card_title, используем его
+      if (response.data.card_title) {
+        setCardTitle(response.data.card_title);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки названия карточки:', err);
+      setCardTitle('');
     }
   };
 
@@ -376,9 +394,14 @@ const OutgoingFiles = ({ cardId }) => {
           onClose={() => setShowSigningModal(false)}
           fileId={registrationResult.file_id}
           pdfFile={registrationResult.file_id + '_' + registrationResult.formatted_number.replace(/[\/\-\\]/g, '_') + '_' + registrationResult.outgoing_date.replace(/\./g, '_') + '_' + selectedFile.name.replace(/\s/g, '_').replace(/[()[\]]/g, '').replace('.docx', '.pdf')}
+          cardId={cardId}
+          outgoingNo={registrationResult.outgoing_no}
+          outgoingDate={registrationResult.outgoing_date}
+          toWhom={cardTitle}
+          executor={registrationResult.executor}
           onSuccess={() => {
             setShowSigningModal(false);
-            alert('✅ Документ успешно подписан!');
+            alert('✅ Документ успешно подписан и запись добавлена в журнал!');
           }}
         />
       )}

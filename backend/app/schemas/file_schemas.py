@@ -49,6 +49,7 @@ class IncomingFilesResponse(BaseModel):
 class OutgoingFilesResponse(BaseModel):
     """Ответ с исходящими файлами"""
     card_id: int
+    card_title: Optional[str] = None  # Название карточки (для поля "Кому")
     main_docx: Optional[FileInfo] = None
     attachments: List[FileInfo] = []
     total_files: int

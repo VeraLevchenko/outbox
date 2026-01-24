@@ -275,22 +275,31 @@ class ClientSignatureUpload(BaseModel):
     signature: str  # Base64 подпись
     thumbprint: str  # Отпечаток сертификата
     cn: str  # Common Name владельца сертификата
+    # Дополнительные данные для записи в журнал
+    card_id: int  # ID карточки Kaiten
+    outgoing_no: int  # Номер документа
+    outgoing_date: str  # Дата в формате ДД.ММ.ГГГГ
+    to_whom: str  # Кому (из названия карточки)
+    executor: str  # Исполнитель
 
 
 @router.post("/upload-client-signature")
 async def upload_client_signature(
     data: ClientSignatureUpload,
+    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
     Принять подпись, созданную на клиенте (через браузер с КриптоПро)
+    и создать запись в журнале исходящих документов
 
     Args:
         data: Данные подписи
+        db: Сессия БД
         current_user: Текущий пользователь
 
     Returns:
-        Результат сохранения подписи
+        Результат сохранения подписи и создания записи в журнале
     """
     try:
         # Декодируем подпись из Base64
@@ -339,11 +348,96 @@ PDF файл: {pdf_file_path.name}
         except Exception as e:
             print(f"[Outbox] Warning: Could not write to log file: {e}")
 
+        # ========== СОЗДАНИЕ ЗАПИСИ В ЖУРНАЛЕ ==========
+
+        # 1. Получаем карточку Kaiten для извлечения краткого содержания
+        print(f"[Outbox] Getting Kaiten card {data.card_id} for journal entry...")
+        card = await kaiten_service.get_card_by_id(data.card_id)
+        if not card:
+            raise HTTPException(status_code=404, detail=f"Card {data.card_id} not found")
+
+        # Извлекаем краткое содержание (description или custom field)
+        content = card.get('description', '') or card.get('text', '') or ''
+        if not content:
+            # Пытаемся найти в custom fields
+            custom_fields = card.get('custom_fields', [])
+            for field in custom_fields:
+                if field.get('name') in ['Содержание', 'Краткое содержание', 'Content']:
+                    content = field.get('value', '')
+                    break
+
+        # Формируем ссылку на карточку Kaiten
+        kaiten_url = f"https://outbox.kaiten.ru/space/397084/card/{data.card_id}"
+
+        # 2. Читаем файлы
+        print(f"[Outbox] Reading PDF and SIG files...")
+        pdf_bytes = pdf_file_path.read_bytes()
+
+        # 3. Получаем приложения (все файлы из карточки, кроме основного DOCX)
+        print(f"[Outbox] Getting attachments from Kaiten...")
+        attachments_bytes = None
+        card_files = card.get('files', [])
+
+        # Фильтруем файлы: исключаем основной DOCX, который был зарегистрирован
+        # Это определяется по имени файла из registrationResult
+        # Но нам нужно знать, какой файл был выбран - это сложно определить здесь
+        # Поэтому возьмём все файлы, кроме .docx файлов (так как основной уже в PDF)
+        attachment_files = [f for f in card_files if not f.get('name', '').lower().endswith('.docx')]
+
+        if attachment_files:
+            print(f"[Outbox] Found {len(attachment_files)} attachments")
+            # Скачиваем и упаковываем в ZIP архив
+            import zipfile
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for file_info in attachment_files:
+                    file_name = file_info.get('name', 'unknown')
+                    file_url = file_info.get('url') or file_info.get('path')
+                    if file_url:
+                        try:
+                            # Скачиваем файл
+                            file_bytes = await file_service.download_file(file_url)
+                            zip_file.writestr(file_name, file_bytes)
+                            print(f"  - Added: {file_name}")
+                        except Exception as e:
+                            print(f"  - Failed to download {file_name}: {e}")
+
+            attachments_bytes = zip_buffer.getvalue()
+            print(f"[Outbox] Attachments archive size: {len(attachments_bytes)} bytes")
+
+        # 4. Конвертируем дату из ДД.ММ.ГГГГ в date
+        from datetime import datetime as dt
+        outgoing_date_obj = dt.strptime(data.outgoing_date, "%d.%m.%Y").date()
+
+        # 5. Создаём запись в журнале
+        from app.models.outbox_journal import OutboxJournal
+
+        print(f"[Outbox] Creating journal entry...")
+        journal_entry = OutboxJournal(
+            outgoing_no=data.outgoing_no,
+            outgoing_date=outgoing_date_obj,
+            to_whom=data.to_whom,
+            executor=data.executor,
+            content=content[:500] if content else None,  # Ограничиваем длину
+            kaiten_card_url=kaiten_url,
+            file_blob=pdf_bytes,
+            sig_blob=sig_bytes,
+            attachments_blob=attachments_bytes,
+            folder_path=None  # Пока не используем
+        )
+
+        db.add(journal_entry)
+        db.commit()
+        db.refresh(journal_entry)
+
+        print(f"[Outbox] Journal entry created: ID={journal_entry.id}")
+
         return {
             "success": True,
-            "message": "Подпись успешно сохранена",
+            "message": "Подпись сохранена и запись добавлена в журнал",
             "pdf_file": pdf_file_path.name,
             "sig_file": sig_file_path.name,
+            "journal_entry_id": journal_entry.id,
             "timestamp": timestamp,
             "certificate": {
                 "cn": data.cn,
@@ -355,6 +449,8 @@ PDF файл: {pdf_file_path.name}
         raise
     except Exception as e:
         print(f"[Outbox] Error uploading client signature: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Ошибка сохранения подписи: {str(e)}"

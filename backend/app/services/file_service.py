@@ -1,4 +1,5 @@
 import os
+import httpx
 from typing import List, Dict, Optional
 from pathlib import Path
 from app.core.config import settings
@@ -165,6 +166,26 @@ class FileService:
             "main_docx": main_docx,
             "attachments": attachments
         }
+
+    async def download_file(self, file_url: str) -> bytes:
+        """
+        Скачать файл по URL
+
+        Args:
+            file_url: URL файла для скачивания
+
+        Returns:
+            Байты файла
+        """
+        print(f"[FileService] Downloading file from: {file_url}")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(file_url)
+            response.raise_for_status()
+
+            file_bytes = response.content
+            print(f"[FileService] Downloaded {len(file_bytes)} bytes")
+            return file_bytes
 
     def get_google_viewer_url(self, file_url: str) -> str:
         """

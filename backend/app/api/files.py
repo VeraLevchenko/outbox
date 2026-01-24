@@ -90,8 +90,12 @@ async def get_outgoing_files(card_id: int):
             total += 1
         total += len(files_data["attachments"])
 
+        # Извлекаем название карточки (для поля "Кому")
+        card_title = card.get('title', '')
+
         return OutgoingFilesResponse(
             card_id=card_id,
+            card_title=card_title,
             main_docx=files_data["main_docx"],
             attachments=files_data["attachments"],
             total_files=total
