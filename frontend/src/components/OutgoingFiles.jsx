@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { filesApi, kaitenApi, outboxApi } from '../services/api';
 import FileViewer from './FileViewer';
+import SigningModal from './SigningModal';
 
 const OutgoingFiles = ({ cardId }) => {
   const [mainDocx, setMainDocx] = useState(null);
@@ -12,6 +13,7 @@ const OutgoingFiles = ({ cardId }) => {
   const [executorLoading, setExecutorLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [registrationResult, setRegistrationResult] = useState(null);
+  const [showSigningModal, setShowSigningModal] = useState(false);
 
   useEffect(() => {
     if (cardId) {
@@ -89,7 +91,8 @@ const OutgoingFiles = ({ cardId }) => {
       const response = await outboxApi.prepareRegistration(cardId, selectedFile.name);
       setRegistrationResult(response.data);
 
-      // TODO: Следующие шаги - конвертация в PDF и подписание
+      // Открываем модальное окно для подписания
+      setShowSigningModal(true);
 
     } catch (err) {
       console.error('Ошибка регистрации:', err);
@@ -365,6 +368,20 @@ const OutgoingFiles = ({ cardId }) => {
           fileName={selectedFile?.name}
         />
       </div>
+
+      {/* Модальное окно подписания */}
+      {registrationResult && (
+        <SigningModal
+          isOpen={showSigningModal}
+          onClose={() => setShowSigningModal(false)}
+          fileId={registrationResult.file_id}
+          pdfFile={registrationResult.file_id + '_' + registrationResult.formatted_number.replace(/[\/\-\\]/g, '_') + '_' + registrationResult.outgoing_date.replace(/\./g, '_') + '_' + selectedFile.name.replace(/\s/g, '_').replace(/[()[\]]/g, '').replace('.docx', '.pdf')}
+          onSuccess={() => {
+            setShowSigningModal(false);
+            alert('✅ Документ успешно подписан!');
+          }}
+        />
+      )}
     </div>
   );
 };
