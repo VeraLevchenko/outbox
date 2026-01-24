@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from pydantic import BaseModel
 import io
 import uuid
+import base64
 
 from app.models.database import SessionLocal
 from app.schemas.outbox_schemas import RegisterRequest, RegisterResponse
@@ -272,3 +274,171 @@ def _create_mock_docx() -> bytes:
     doc.save(output)
     output.seek(0)
     return output.read()
+
+
+class ClientSignatureUpload(BaseModel):
+    """Схема для приёма подписи, созданной на клиенте"""
+    file_id: str  # ID временного файла
+    signature: str  # Base64 подпись
+    thumbprint: str  # Отпечаток сертификата
+    cn: str  # Common Name владельца сертификата
+
+
+@router.post("/upload-client-signature")
+async def upload_client_signature(
+    data: ClientSignatureUpload,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Принять подпись, созданную на клиенте (через браузер с КриптоПро)
+
+    Args:
+        data: Данные подписи
+        current_user: Текущий пользователь
+
+    Returns:
+        Результат сохранения подписи
+    """
+    try:
+        # Декодируем подпись из Base64
+        try:
+            sig_bytes = base64.b64decode(data.signature)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Неверный формат подписи Base64: {str(e)}"
+            )
+
+        # Проверяем, что файл существует
+        # Ищем файлы с этим file_id
+        matching_files = list(TEMP_FILES_DIR.glob(f"{data.file_id}_*.pdf"))
+        if not matching_files:
+            raise HTTPException(
+                status_code=404,
+                detail=f"PDF файл с ID {data.file_id} не найден"
+            )
+
+        pdf_file_path = matching_files[0]
+
+        # Создаём .sig файл рядом с PDF
+        sig_file_path = pdf_file_path.with_suffix('.pdf.sig')
+        sig_file_path.write_bytes(sig_bytes)
+
+        # Логируем информацию о подписи
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"""
+=== Подпись получена от клиента ===
+Время: {timestamp}
+Владелец сертификата: {data.cn}
+Отпечаток: {data.thumbprint}
+PDF файл: {pdf_file_path.name}
+Размер PDF: {pdf_file_path.stat().st_size} байт
+Размер подписи: {len(sig_bytes)} байт
+========================
+"""
+        print(log_entry)
+
+        # Сохраняем в лог-файл
+        log_path = TEMP_FILES_DIR / "signatures.log"
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(log_entry + "\n")
+        except Exception as e:
+            print(f"[Outbox] Warning: Could not write to log file: {e}")
+
+        return {
+            "success": True,
+            "message": "Подпись успешно сохранена",
+            "pdf_file": pdf_file_path.name,
+            "sig_file": sig_file_path.name,
+            "timestamp": timestamp,
+            "certificate": {
+                "cn": data.cn,
+                "thumbprint": data.thumbprint
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Outbox] Error uploading client signature: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка сохранения подписи: {str(e)}"
+        )
+
+
+@router.get("/download/{filename}")
+async def download_file(filename: str):
+    """
+    Скачать файл из временного хранилища
+
+    Args:
+        filename: Имя файла для скачивания
+
+    Returns:
+        Файл для скачивания
+    """
+    # Защита от path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Неверное имя файла")
+
+    file_path = TEMP_FILES_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+
+    # Определяем MIME тип
+    if filename.endswith('.pdf'):
+        media_type = "application/pdf"
+    elif filename.endswith('.sig'):
+        media_type = "application/octet-stream"
+    elif filename.endswith('.docx'):
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        media_type = "application/octet-stream"
+
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        filename=filename
+    )
+
+
+@router.get("/status/{file_id}")
+async def get_file_status(file_id: str):
+    """
+    Получить статус файлов (PDF, DOCX, SIG) по file_id
+
+    Args:
+        file_id: ID файла
+
+    Returns:
+        Информация о существующих файлах
+    """
+    pdf_files = list(TEMP_FILES_DIR.glob(f"{file_id}_*.pdf"))
+    docx_files = list(TEMP_FILES_DIR.glob(f"{file_id}_*.docx"))
+    sig_files = list(TEMP_FILES_DIR.glob(f"{file_id}_*.pdf.sig"))
+
+    result = {
+        "file_id": file_id,
+        "pdf_exists": len(pdf_files) > 0,
+        "docx_exists": len(docx_files) > 0,
+        "sig_exists": len(sig_files) > 0,
+    }
+
+    if pdf_files:
+        pdf_path = pdf_files[0]
+        result["pdf_file"] = pdf_path.name
+        result["pdf_size"] = pdf_path.stat().st_size
+
+    if docx_files:
+        docx_path = docx_files[0]
+        result["docx_file"] = docx_path.name
+        result["docx_size"] = docx_path.stat().st_size
+
+    if sig_files:
+        sig_path = sig_files[0]
+        result["sig_file"] = sig_path.name
+        result["sig_size"] = sig_path.stat().st_size
+
+    return result

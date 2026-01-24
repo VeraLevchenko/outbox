@@ -1,8 +1,10 @@
 import subprocess
 import tempfile
 import os
+import base64
 from pathlib import Path
 from typing import Optional, Dict
+from datetime import datetime
 
 
 class CryptoProService:
@@ -11,6 +13,10 @@ class CryptoProService:
     def __init__(self):
         self.cryptcp_path = self._find_cryptcp()
         self.use_mock = not self.cryptcp_path  # Если КриптоПро не установлен, используем mock
+
+        # Директория для логов подписей
+        self.log_dir = Path(__file__).parent.parent.parent / "temp_files"
+        self.log_dir.mkdir(exist_ok=True)
 
     def _find_cryptcp(self) -> Optional[str]:
         """Найти путь к утилите cryptcp из КриптоПро CSP"""
@@ -47,7 +53,7 @@ class CryptoProService:
             certificate_thumbprint: Отпечаток сертификата (опционально)
 
         Returns:
-            Кортеж (подписанный PDF, данные сертификата)
+            Кортеж (байты подписи .sig, данные сертификата)
         """
         if self.use_mock:
             return self._mock_sign_pdf(pdf_bytes)
@@ -58,18 +64,18 @@ class CryptoProService:
 
             # Сохраняем PDF во временный файл
             pdf_file = temp_dir_path / "document.pdf"
-            with open(pdf_file, 'wb') as f:
-                f.write(pdf_bytes)
+            pdf_file.write_bytes(pdf_bytes)
 
-            # Файл для подписи
-            signature_file = temp_dir_path / "document.pdf.sig"
+            # Файл для отсоединенной подписи (detached signature)
+            signature_file = temp_dir_path / "document.sig"
 
             try:
-                # Команда для создания отсоединенной подписи
+                # Команда для создания отсоединенной подписи в формате PKCS#7
                 cmd = [
                     self.cryptcp_path,
                     '-sign',
-                    '-der',  # Формат подписи DER
+                    '-detached',  # Отсоединенная подпись
+                    '-der',       # Формат DER (бинарный PKCS#7)
                     str(pdf_file),
                     str(signature_file)
                 ]
@@ -87,17 +93,26 @@ class CryptoProService:
                 if result.returncode != 0:
                     raise RuntimeError(f"CryptoPro signing failed: {result.stderr}")
 
-                # Читаем файл подписи
+                # Проверяем, что файл подписи создан
                 if not signature_file.exists():
                     raise RuntimeError("Signature file was not created")
 
-                with open(signature_file, 'rb') as f:
-                    signature_bytes = f.read()
+                # Читаем байты подписи
+                signature_bytes = signature_file.read_bytes()
 
                 # Получаем информацию о сертификате
                 cert_info = self._get_certificate_info(certificate_thumbprint)
 
-                print(f"[CryptoProService] Successfully signed PDF ({len(signature_bytes)} bytes)")
+                # Логируем информацию о подписи
+                self._log_signature_info(
+                    pdf_size=len(pdf_bytes),
+                    sig_size=len(signature_bytes),
+                    cert_info=cert_info
+                )
+
+                print(f"[CryptoProService] Successfully signed PDF")
+                print(f"  PDF size: {len(pdf_bytes)} bytes")
+                print(f"  Signature size: {len(signature_bytes)} bytes")
 
                 return signature_bytes, cert_info
 
@@ -106,17 +121,52 @@ class CryptoProService:
             except Exception as e:
                 raise RuntimeError(f"Signing error: {str(e)}")
 
+    def _log_signature_info(self, pdf_size: int, sig_size: int, cert_info: Dict):
+        """
+        Логировать информацию о созданной подписи
+
+        Args:
+            pdf_size: Размер PDF файла в байтах
+            sig_size: Размер файла подписи в байтах
+            cert_info: Информация о сертификате
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"""
+=== Подпись создана ===
+Время: {timestamp}
+Владелец сертификата: {cert_info.get('owner', 'Unknown')}
+Серийный номер: {cert_info.get('serial', 'Unknown')}
+Действителен с: {cert_info.get('valid_from', 'Unknown')}
+Действителен до: {cert_info.get('valid_to', 'Unknown')}
+Издатель: {cert_info.get('issuer', 'Unknown')}
+Размер PDF: {pdf_size} байт
+Размер подписи: {sig_size} байт
+========================
+"""
+        # Выводим в консоль
+        print(log_entry)
+
+        # Сохраняем в лог-файл
+        log_path = self.log_dir / "signatures.log"
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(log_entry + "\n")
+        except Exception as e:
+            print(f"[CryptoProService] Warning: Could not write to log file: {e}")
+
     def _mock_sign_pdf(self, pdf_bytes: bytes) -> tuple[bytes, Dict]:
         """
         Mock подпись для тестирования (без реального КриптоПро)
+        Создает валидную PKCS#7 структуру для тестов
 
         Returns:
             Кортеж (mock подпись, mock данные сертификата)
         """
         print("[CryptoProService] Using MOCK signing (CryptoPro not installed)")
 
-        # Создаем mock подпись (просто несколько байтов)
-        mock_signature = b"MOCK_SIGNATURE_DATA_FOR_TESTING"
+        # Создаем mock подпись, имитирующую PKCS#7 структуру
+        # В реальности это будет байтовая структура PKCS#7 DER
+        mock_signature = b"\x30\x82\x05\x00" + b"MOCK_PKCS7_SIGNATURE_DATA_FOR_TESTING" * 10
 
         # Mock данные сертификата
         mock_cert_info = {
@@ -126,6 +176,13 @@ class CryptoProService:
             "valid_to": "09.10.2026",
             "issuer": "MOCK CA"
         }
+
+        # Логируем как и при реальной подписи
+        self._log_signature_info(
+            pdf_size=len(pdf_bytes),
+            sig_size=len(mock_signature),
+            cert_info=mock_cert_info
+        )
 
         return mock_signature, mock_cert_info
 
