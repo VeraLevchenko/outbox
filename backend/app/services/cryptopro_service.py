@@ -16,7 +16,8 @@ class CryptoProService:
 
         # Директория для логов подписей
         self.log_dir = Path(__file__).parent.parent.parent / "temp_files"
-        self.log_dir.mkdir(exist_ok=True)
+        # Создаём директорию с правами на запись
+        self.log_dir.mkdir(exist_ok=True, parents=True, mode=0o755)
 
     def _find_cryptcp(self) -> Optional[str]:
         """Найти путь к утилите cryptcp из КриптоПро CSP"""

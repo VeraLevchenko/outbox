@@ -205,26 +205,33 @@ async def prepare_registration(
         )
 
         # 14. Сохраняем файлы во временное хранилище
+        # Убеждаемся, что директория существует
+        TEMP_FILES_DIR.mkdir(exist_ok=True, parents=True)
+
         file_id = str(uuid.uuid4())
         # Формируем имя файла: номер_дата_оригинальное_имя
         safe_number = formatted_number.replace('/', '_').replace('\\', '_').replace('-', '_')
         safe_date = outgoing_date.replace('.', '_')
+
+        # Санитизируем оригинальное имя файла - убираем проблемные символы
         base_name = request.selected_file_name.rsplit('.', 1)[0]  # без расширения
+        # Заменяем пробелы, скобки и другие проблемные символы
+        safe_base_name = base_name.replace(' ', '_').replace('(', '').replace(')', '').replace('[', '').replace(']', '')
 
         # Сохраняем DOCX с штампом
-        docx_filename = f"{safe_number}_{safe_date}_{base_name}.docx"
+        docx_filename = f"{safe_number}_{safe_date}_{safe_base_name}.docx"
         docx_file_path = TEMP_FILES_DIR / f"{file_id}_{docx_filename}"
         with open(docx_file_path, 'wb') as f:
             f.write(modified_docx_with_stamp)
 
         # Сохраняем PDF
-        pdf_filename = f"{safe_number}_{safe_date}_{base_name}.pdf"
+        pdf_filename = f"{safe_number}_{safe_date}_{safe_base_name}.pdf"
         pdf_file_path = TEMP_FILES_DIR / f"{file_id}_{pdf_filename}"
         with open(pdf_file_path, 'wb') as f:
             f.write(pdf_bytes)
 
         # Сохраняем подпись
-        sig_filename = f"{safe_number}_{safe_date}_{base_name}.pdf.sig"
+        sig_filename = f"{safe_number}_{safe_date}_{safe_base_name}.pdf.sig"
         sig_file_path = TEMP_FILES_DIR / f"{file_id}_{sig_filename}"
         with open(sig_file_path, 'wb') as f:
             f.write(signature_bytes)
