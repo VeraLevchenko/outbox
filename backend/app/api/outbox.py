@@ -405,11 +405,50 @@ PDF файл: {pdf_file_path.name}
             attachments_bytes = zip_buffer.getvalue()
             print(f"[Outbox] Attachments archive size: {len(attachments_bytes)} bytes")
 
-        # 4. Конвертируем дату из ДД.ММ.ГГГГ в date
+        # ========== СОХРАНЕНИЕ ФАЙЛОВ В ПАПКУ ИСХОДЯЩИХ ==========
+
+        # 4. Создаём папку и сохраняем файлы в /mnt/doc/Исходящие/{номер}
+        from app.core.config import settings
+        outgoing_folder = Path(settings.OUTGOING_FILES_PATH) / str(data.outgoing_no)
+
+        print(f"[Outbox] Creating folder: {outgoing_folder}")
+        outgoing_folder.mkdir(parents=True, exist_ok=True)
+
+        # Сохраняем PDF
+        pdf_filename = pdf_file_path.name.replace(f"{data.file_id}_", "")  # Убираем file_id из имени
+        pdf_save_path = outgoing_folder / pdf_filename
+        pdf_save_path.write_bytes(pdf_bytes)
+        print(f"[Outbox] Saved PDF: {pdf_save_path}")
+
+        # Сохраняем SIG
+        sig_filename = pdf_filename.replace('.pdf', '.pdf.sig')
+        sig_save_path = outgoing_folder / sig_filename
+        sig_save_path.write_bytes(sig_bytes)
+        print(f"[Outbox] Saved SIG: {sig_save_path}")
+
+        # Сохраняем приложения (отдельные файлы, а не архив)
+        if attachment_files:
+            print(f"[Outbox] Saving {len(attachment_files)} attachments to folder...")
+            for file_info in attachment_files:
+                file_name = file_info.get('name', 'unknown')
+                file_url = file_info.get('url') or file_info.get('path')
+                if file_url:
+                    try:
+                        # Скачиваем файл (повторно, если нужно)
+                        file_bytes = await file_service.download_file(file_url)
+                        attachment_save_path = outgoing_folder / file_name
+                        attachment_save_path.write_bytes(file_bytes)
+                        print(f"  - Saved: {file_name}")
+                    except Exception as e:
+                        print(f"  - Failed to save {file_name}: {e}")
+
+        print(f"[Outbox] All files saved to: {outgoing_folder}")
+
+        # 6. Конвертируем дату из ДД.ММ.ГГГГ в date
         from datetime import datetime as dt
         outgoing_date_obj = dt.strptime(data.outgoing_date, "%d.%m.%Y").date()
 
-        # 5. Создаём запись в журнале
+        # 7. Создаём запись в журнале
         from app.models.outbox_journal import OutboxJournal
 
         print(f"[Outbox] Creating journal entry...")
@@ -423,7 +462,7 @@ PDF файл: {pdf_file_path.name}
             file_blob=pdf_bytes,
             sig_blob=sig_bytes,
             attachments_blob=attachments_bytes,
-            folder_path=None  # Пока не используем
+            folder_path=str(outgoing_folder)  # Путь к папке с файлами
         )
 
         db.add(journal_entry)
@@ -434,9 +473,10 @@ PDF файл: {pdf_file_path.name}
 
         return {
             "success": True,
-            "message": "Подпись сохранена и запись добавлена в журнал",
+            "message": "Подпись сохранена, файлы записаны в папку и запись добавлена в журнал",
             "pdf_file": pdf_file_path.name,
             "sig_file": sig_file_path.name,
+            "folder_path": str(outgoing_folder),
             "journal_entry_id": journal_entry.id,
             "timestamp": timestamp,
             "certificate": {
