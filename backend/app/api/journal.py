@@ -79,6 +79,7 @@ async def get_journal_entries(
             JournalEntryResponse(
                 id=entry.id,
                 outgoing_no=entry.outgoing_no,
+                formatted_number=entry.formatted_number,
                 outgoing_date=entry.outgoing_date,
                 to_whom=entry.to_whom,
                 executor=entry.executor,

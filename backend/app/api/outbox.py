@@ -460,7 +460,8 @@ PDF файл: {pdf_file_path.name}
 
         print(f"[Outbox] Creating journal entry...")
         journal_entry = OutboxJournal(
-            outgoing_no=data.formatted_number,  # Используем форматированный номер (например, "178-01")
+            outgoing_no=data.outgoing_no,  # Числовая часть (например, 178)
+            formatted_number=data.formatted_number,  # Полный форматированный номер (например, "178-01")
             outgoing_date=outgoing_date_obj,
             to_whom=data.to_whom,
             executor=data.executor,

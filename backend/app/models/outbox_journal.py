@@ -8,7 +8,8 @@ class OutboxJournal(Base):
     __tablename__ = "outbox_journal"
 
     id = Column(Integer, primary_key=True, index=True)
-    outgoing_no = Column(String, unique=True, nullable=False, index=True)  # Форматированный номер (например, "178-01")
+    outgoing_no = Column(Integer, nullable=False, index=True)  # Числовая часть номера (например, 178)
+    formatted_number = Column(String, unique=True, nullable=False)  # Полный форматированный номер (например, "178-01")
     outgoing_date = Column(Date, nullable=False)
     to_whom = Column(String, nullable=True)
     executor = Column(String, nullable=True)
