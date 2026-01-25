@@ -141,6 +141,12 @@ class KaitenService:
             column_id = settings.KAITEN_COLUMN_OUTBOX_ID
         elif target_column == "Проект готов. Согласование начальника отдела":
             column_id = settings.KAITEN_COLUMN_HEAD_REVIEW_ID
+        elif target_column == "На доработку":
+            column_id = settings.KAITEN_COLUMN_REWORK_ID
+        elif target_column == "В работе":
+            # Для начальника отдела - возврат в "В работе"
+            # Используем ID из settings если он есть, иначе оставляем None
+            column_id = None  # Нужно добавить в .env если требуется
 
         if not column_id:
             print(f"Unknown target column: {target_column}")
@@ -151,9 +157,6 @@ class KaitenService:
                 payload = {
                     "column_id": column_id
                 }
-
-                if comment:
-                    payload["comment"] = comment
 
                 # Добавляем properties, если указаны исходящий номер и дата
                 if outgoing_no or outgoing_date:
@@ -182,12 +185,47 @@ class KaitenService:
 
                 if response.status_code in [200, 201]:
                     print(f"[Kaiten API] Card {card_id} moved to '{target_column}' (ID: {column_id})")
+
+                    # Добавляем комментарий, если он указан
+                    if comment:
+                        await self.add_comment(card_id, comment)
+
                     return True
                 else:
                     print(f"[Kaiten API] Error moving card {card_id}: {response.status_code}, Response: {response.text}")
                     return False
             except Exception as e:
                 print(f"Error moving card {card_id}: {e}")
+                return False
+
+    async def add_comment(self, card_id: int, text: str) -> bool:
+        """
+        Добавить комментарий к карточке
+
+        Args:
+            card_id: ID карточки
+            text: Текст комментария
+
+        Returns:
+            bool: True если успешно
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{self.api_url}/cards/{card_id}/comments",
+                    headers=self.headers,
+                    json={"text": text},
+                    timeout=10.0
+                )
+
+                if response.status_code in [200, 201]:
+                    print(f"[Kaiten API] Comment added to card {card_id}")
+                    return True
+                else:
+                    print(f"[Kaiten API] Error adding comment to card {card_id}: {response.status_code}, Response: {response.text}")
+                    return False
+            except Exception as e:
+                print(f"[Kaiten API] Failed to add comment to card {card_id}: {e}")
                 return False
 
     async def get_card_by_id(self, card_id: int) -> Optional[Dict]:

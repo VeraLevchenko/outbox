@@ -131,7 +131,7 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
     try {
       // Определяем целевую колонку в зависимости от роли
       const targetColumn = userRole === 'director'
-        ? 'Проект готов. Согласование начальника отдела'
+        ? 'На доработку'
         : 'В работе';
 
       await kaitenApi.moveCard(
