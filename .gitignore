@@ -14,6 +14,8 @@ ENV/
 backend/.env
 backend/users.json
 backend/passwords.txt
+backend/executors.json
+backend/numbering_rules.json
 
 # IDEs
 .vscode/
