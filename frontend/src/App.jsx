@@ -181,7 +181,7 @@ function App() {
       {/* Контент */}
       <div className="content">
         {mainTab === 'cards' && subTab === 'incoming' && <IncomingFiles cardId={cardId} />}
-        {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} onCardsUpdate={loadCards} />}
+        {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} onCardsUpdate={loadCards} userRole={user?.role} />}
         {mainTab === 'journal' && <Journal />}
       </div>
     </div>
