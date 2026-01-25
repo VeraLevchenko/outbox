@@ -1,8 +1,14 @@
 from fastapi import APIRouter, HTTPException
-from typing import List, Dict
+from typing import List, Dict, Optional
+from pydantic import BaseModel
 from app.services.kaiten_service import kaiten_service
 
 router = APIRouter(prefix="/api/kaiten", tags=["kaiten"])
+
+
+class MoveCardRequest(BaseModel):
+    target_column: str
+    comment: Optional[str] = None
 
 
 @router.get("/cards")
@@ -36,25 +42,23 @@ async def get_cards(role: str = "director") -> List[Dict]:
 @router.post("/cards/{card_id}/move")
 async def move_card(
     card_id: int,
-    target_column: str,
-    comment: str = None
+    request: MoveCardRequest
 ) -> Dict:
     """
     Переместить карточку в другую колонку
 
     Args:
         card_id: ID карточки
-        target_column: Название целевой колонки
-        comment: Опциональный комментарий
+        request: Тело запроса с target_column и comment
 
     Returns:
         Результат операции
     """
     try:
-        success = await kaiten_service.move_card(card_id, target_column, comment)
+        success = await kaiten_service.move_card(card_id, request.target_column, request.comment)
 
         if success:
-            return {"status": "success", "message": f"Card {card_id} moved to '{target_column}'"}
+            return {"status": "success", "message": f"Card {card_id} moved to '{request.target_column}'"}
         else:
             raise HTTPException(status_code=500, detail="Failed to move card")
     except Exception as e:
