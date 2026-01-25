@@ -403,9 +403,15 @@ const OutgoingFiles = ({ cardId, onCardsUpdate }) => {
           onSuccess={async () => {
             setShowSigningModal(false);
 
-            // Перемещаем карточку в колонку "Отправка"
+            // Перемещаем карточку в колонку "Отправка" с проставлением исходящего номера и даты
             try {
-              await kaitenApi.moveCard(cardId, 'Отправка', 'Документ подписан');
+              await kaitenApi.moveCard(
+                cardId,
+                'Отправка',
+                'Документ подписан',
+                registrationResult.formatted_number,
+                registrationResult.outgoing_date.split('.').reverse().join('-') // Конвертируем DD.MM.YYYY в YYYY-MM-DD
+              );
               console.log('[OutgoingFiles] Карточка перемещена в колонку "Отправка"');
             } catch (err) {
               console.error('[OutgoingFiles] Ошибка перемещения карточки:', err);

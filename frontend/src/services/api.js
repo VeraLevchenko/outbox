@@ -51,8 +51,13 @@ export const authApi = {
 // API методы для Kaiten
 export const kaitenApi = {
   getCards: (role) => api.get(`/api/kaiten/cards?role=${role}`),
-  moveCard: (cardId, targetColumn, comment) =>
-    api.post(`/api/kaiten/cards/${cardId}/move`, { target_column: targetColumn, comment }),
+  moveCard: (cardId, targetColumn, comment, outgoingNo, outgoingDate) =>
+    api.post(`/api/kaiten/cards/${cardId}/move`, {
+      target_column: targetColumn,
+      comment,
+      outgoing_no: outgoingNo,
+      outgoing_date: outgoingDate
+    }),
   getCardMembers: (cardId) => api.get(`/api/kaiten/cards/${cardId}/members`),
   getCardExecutor: (cardId) => api.get(`/api/kaiten/cards/${cardId}/executor`),
 };

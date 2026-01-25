@@ -112,7 +112,14 @@ class KaitenService:
                 print(f"Error fetching cards from Kaiten: {e}")
                 return []
 
-    async def move_card(self, card_id: int, target_column: str, comment: Optional[str] = None) -> bool:
+    async def move_card(
+        self,
+        card_id: int,
+        target_column: str,
+        comment: Optional[str] = None,
+        outgoing_no: Optional[str] = None,
+        outgoing_date: Optional[str] = None
+    ) -> bool:
         """
         Переместить карточку в другую колонку
 
@@ -120,6 +127,8 @@ class KaitenService:
             card_id: ID карточки
             target_column: Название целевой колонки
             comment: Опциональный комментарий
+            outgoing_no: Исходящий номер (форматированный, например "04-01")
+            outgoing_date: Исходящая дата (формат YYYY-MM-DD)
 
         Returns:
             True если успешно, False если ошибка
@@ -145,6 +154,21 @@ class KaitenService:
 
                 if comment:
                     payload["comment"] = comment
+
+                # Добавляем properties, если указаны исходящий номер и дата
+                if outgoing_no or outgoing_date:
+                    properties = {}
+
+                    if outgoing_no:
+                        properties[settings.KAITEN_PROPERTY_OUTGOING_NO] = outgoing_no
+
+                    if outgoing_date:
+                        properties[settings.KAITEN_PROPERTY_OUTGOING_DATE] = {
+                            "date": outgoing_date
+                        }
+
+                    payload["properties"] = properties
+                    print(f"[Kaiten API] Setting properties: outgoing_no={outgoing_no}, outgoing_date={outgoing_date}")
 
                 response = await client.patch(
                     f"{self.api_url}/cards/{card_id}",
