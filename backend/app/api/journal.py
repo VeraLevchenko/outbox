@@ -113,20 +113,32 @@ async def create_journal_entry(
         Созданная запись
     """
     try:
-        # Проверяем, что номер не занят
-        existing = db.query(OutboxJournal).filter(
+        # Проверяем, что числовая часть номера не занята
+        existing_no = db.query(OutboxJournal).filter(
             OutboxJournal.outgoing_no == entry.outgoing_no
         ).first()
 
-        if existing:
+        if existing_no:
             raise HTTPException(
                 status_code=400,
-                detail=f"Outgoing number {entry.outgoing_no} already exists"
+                detail=f"Числовая часть номера {entry.outgoing_no} уже занята"
+            )
+
+        # Проверяем, что форматированный номер не занят
+        existing_formatted = db.query(OutboxJournal).filter(
+            OutboxJournal.formatted_number == entry.formatted_number
+        ).first()
+
+        if existing_formatted:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Номер {entry.formatted_number} уже существует"
             )
 
         # Создаем новую запись
         new_entry = OutboxJournal(
             outgoing_no=entry.outgoing_no,
+            formatted_number=entry.formatted_number,
             outgoing_date=entry.outgoing_date,
             to_whom=entry.to_whom,
             executor=entry.executor,
@@ -140,6 +152,7 @@ async def create_journal_entry(
         return JournalEntryResponse(
             id=new_entry.id,
             outgoing_no=new_entry.outgoing_no,
+            formatted_number=new_entry.formatted_number,
             outgoing_date=new_entry.outgoing_date,
             to_whom=new_entry.to_whom,
             executor=new_entry.executor,
