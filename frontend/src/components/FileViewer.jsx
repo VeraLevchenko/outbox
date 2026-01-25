@@ -9,12 +9,45 @@ const FileViewer = ({ fileUrl, fileName }) => {
     );
   }
 
-  // Используем endpoint backend для скачивания файла
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  const downloadUrl = `${API_BASE_URL}/api/files/download?file_path=${encodeURIComponent(fileUrl)}`;
+  // Определяем тип файла: URL из Kaiten (публичный) или путь на сервере (локальный)
+  const isPublicUrl = fileUrl.startsWith('http://') || fileUrl.startsWith('https://');
 
   // Определяем расширение файла
   const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
+
+  // Для файлов из Kaiten (публичные URL) - используем Google Viewer
+  if (isPublicUrl) {
+    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+
+    return (
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {fileName && (
+          <div style={{
+            padding: '10px',
+            background: '#f5f5f5',
+            borderBottom: '1px solid #ddd',
+            fontWeight: 'bold'
+          }}>
+            {fileName}
+          </div>
+        )}
+        <iframe
+          src={viewerUrl}
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            flex: 1
+          }}
+          title={fileName || 'Document Viewer'}
+        />
+      </div>
+    );
+  }
+
+  // Для файлов с сервера (локальные пути) - используем endpoint для скачивания
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const downloadUrl = `${API_BASE_URL}/api/files/download?file_path=${encodeURIComponent(fileUrl)}`;
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -31,7 +64,7 @@ const FileViewer = ({ fileUrl, fileName }) => {
 
       {/* Просмотр PDF встроенным просмотрщиком браузера */}
       {fileExtension === 'pdf' ? (
-        <embed
+        <iframe
           src={downloadUrl}
           type="application/pdf"
           style={{
@@ -40,6 +73,7 @@ const FileViewer = ({ fileUrl, fileName }) => {
             border: 'none',
             flex: 1
           }}
+          title={fileName || 'PDF Viewer'}
         />
       ) : (
         /* Для других форматов - предложение скачать */
