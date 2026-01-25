@@ -8,6 +8,7 @@ const Journal = () => {
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear());
   const [monthFilter, setMonthFilter] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({});
 
   useEffect(() => {
@@ -69,6 +70,7 @@ const Journal = () => {
     setEditingEntry(entry);
     setFormData({
       outgoing_no: entry.outgoing_no,
+      formatted_number: entry.formatted_number,
       outgoing_date: entry.outgoing_date,
       to_whom: entry.to_whom || '',
       executor: entry.executor || '',
@@ -76,13 +78,51 @@ const Journal = () => {
     });
   };
 
+  const handleCreate = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setShowCreateForm(true);
+    setFormData({
+      outgoing_no: '',
+      formatted_number: '',
+      outgoing_date: today,
+      to_whom: '',
+      executor: '',
+      folder_path: ''
+    });
+  };
+
+  const handleSaveCreate = async () => {
+    try {
+      // Проверка обязательных полей
+      if (!formData.outgoing_no || !formData.formatted_number || !formData.outgoing_date) {
+        alert('Заполните обязательные поля: числовая часть номера, форматированный номер и дата');
+        return;
+      }
+
+      await journalApi.createEntry(formData);
+      setShowCreateForm(false);
+      loadEntries();
+      alert('Запись успешно создана!');
+    } catch (err) {
+      alert('Ошибка создания записи: ' + (err.response?.data?.detail || err.message));
+      console.error(err);
+    }
+  };
+
   const handleSaveEdit = async () => {
     try {
+      // Проверка обязательных полей
+      if (!formData.formatted_number) {
+        alert('Заполните обязательное поле: форматированный номер');
+        return;
+      }
+
       await journalApi.updateEntry(editingEntry.id, formData);
       setEditingEntry(null);
       loadEntries();
+      alert('Запись успешно обновлена!');
     } catch (err) {
-      alert('Ошибка обновления записи: ' + err.message);
+      alert('Ошибка обновления записи: ' + (err.response?.data?.detail || err.message));
       console.error(err);
     }
   };
@@ -170,6 +210,22 @@ const Journal = () => {
               </option>
             ))}
           </select>
+
+          {/* Кнопка создания записи */}
+          <button
+            onClick={handleCreate}
+            style={{
+              padding: '8px 16px',
+              background: '#16a34a',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            + Создать запись
+          </button>
 
           {/* Кнопка экспорта */}
           <button
@@ -318,12 +374,12 @@ const Journal = () => {
 
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
-                Исходящий номер:
+                Форматированный номер:
               </label>
               <input
-                type="number"
-                value={formData.outgoing_no || ''}
-                onChange={(e) => setFormData({...formData, outgoing_no: Number(e.target.value)})}
+                type="text"
+                value={formData.formatted_number || ''}
+                onChange={(e) => setFormData({...formData, formatted_number: e.target.value})}
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -331,6 +387,7 @@ const Journal = () => {
                   borderRadius: '4px',
                   fontSize: '14px'
                 }}
+                placeholder="Например: 4-01"
               />
             </div>
 
@@ -434,6 +491,175 @@ const Journal = () => {
                 }}
               >
                 Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно создания записи */}
+      {showCreateForm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '4px',
+            width: '500px',
+            maxWidth: '90%',
+            border: '1px solid #e5e7eb'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Создание новой записи</h3>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Числовая часть номера: <span style={{ color: 'red' }}>*</span>
+              </label>
+              <input
+                type="number"
+                value={formData.outgoing_no || ''}
+                onChange={(e) => setFormData({...formData, outgoing_no: Number(e.target.value)})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+                placeholder="Например: 4"
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Форматированный номер: <span style={{ color: 'red' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.formatted_number || ''}
+                onChange={(e) => setFormData({...formData, formatted_number: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+                placeholder="Например: 4-01"
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Дата: <span style={{ color: 'red' }}>*</span>
+              </label>
+              <input
+                type="date"
+                value={formData.outgoing_date || ''}
+                onChange={(e) => setFormData({...formData, outgoing_date: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Кому:
+              </label>
+              <input
+                type="text"
+                value={formData.to_whom || ''}
+                onChange={(e) => setFormData({...formData, to_whom: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Исполнитель:
+              </label>
+              <input
+                type="text"
+                value={formData.executor || ''}
+                onChange={(e) => setFormData({...formData, executor: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Путь к файлам:
+              </label>
+              <input
+                type="text"
+                value={formData.folder_path || ''}
+                onChange={(e) => setFormData({...formData, folder_path: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+                placeholder="Например: /mnt/doc/Исходящие/4-01"
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#9ca3af',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSaveCreate}
+                style={{
+                  padding: '8px 16px',
+                  background: '#16a34a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Создать
               </button>
             </div>
           </div>

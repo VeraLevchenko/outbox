@@ -5,6 +5,7 @@ from datetime import date
 class JournalEntryCreate(BaseModel):
     """Схема для создания записи в журнале"""
     outgoing_no: int
+    formatted_number: str
     outgoing_date: date
     to_whom: str | None = None
     executor: str | None = None
@@ -14,10 +15,11 @@ class JournalEntryCreate(BaseModel):
         json_schema_extra = {
             "example": {
                 "outgoing_no": 123,
+                "formatted_number": "123-01",
                 "outgoing_date": "2025-01-18",
                 "to_whom": "Министерство финансов РФ",
                 "executor": "Иванов И.П.",
-                "folder_path": "/mnt/doc/Исходящие/2025/01/123"
+                "folder_path": "/mnt/doc/Исходящие/123-01"
             }
         }
 
