@@ -204,11 +204,11 @@ async def download_file(file_path: str = Query(..., description="Путь к ф�
         }
         media_type = mime_types.get(extension, "application/octet-stream")
 
-        # Вернуть файл
+        # Вернуть файл с Content-Disposition: inline для просмотра в браузере
         return FileResponse(
             path=str(path),
-            filename=path.name,
-            media_type=media_type
+            media_type=media_type,
+            headers={"Content-Disposition": f"inline; filename={path.name}"}
         )
     except HTTPException:
         raise
