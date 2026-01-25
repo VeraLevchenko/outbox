@@ -190,11 +190,25 @@ async def download_file(file_path: str = Query(..., description="Путь к ф�
         if not path.is_file():
             raise HTTPException(status_code=400, detail=f"Path is not a file: {file_path}")
 
+        # Определяем MIME тип по расширению
+        extension = path.suffix.lower()
+        mime_types = {
+            ".pdf": "application/pdf",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".doc": "application/msword",
+            ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".xls": "application/vnd.ms-excel",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+        }
+        media_type = mime_types.get(extension, "application/octet-stream")
+
         # Вернуть файл
         return FileResponse(
             path=str(path),
             filename=path.name,
-            media_type="application/octet-stream"
+            media_type=media_type
         )
     except HTTPException:
         raise
