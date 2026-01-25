@@ -88,7 +88,7 @@ const Journal = () => {
   };
 
   const handleDelete = async (entry) => {
-    if (!window.confirm(`Удалить запись №${entry.outgoing_no}? Папка с файлами также будет удалена.`)) {
+    if (!window.confirm(`Удалить запись №${entry.formatted_number}? Папка с файлами также будет удалена.`)) {
       return;
     }
 
@@ -238,7 +238,7 @@ const Journal = () => {
                   onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                 >
                   <td style={cellStyle}>{index + 1}</td>
-                  <td style={{...cellStyle, fontWeight: '500'}}>{entry.outgoing_no}</td>
+                  <td style={{...cellStyle, fontWeight: '500'}}>{entry.formatted_number}</td>
                   <td style={cellStyle}>{formatDate(entry.outgoing_date)}</td>
                   <td style={cellStyle}>{entry.to_whom || '-'}</td>
                   <td style={cellStyle}>{entry.executor || '-'}</td>

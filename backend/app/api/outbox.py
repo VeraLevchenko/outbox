@@ -277,7 +277,8 @@ class ClientSignatureUpload(BaseModel):
     cn: str  # Common Name владельца сертификата
     # Дополнительные данные для записи в журнал
     card_id: int  # ID карточки Kaiten
-    outgoing_no: int  # Номер документа
+    outgoing_no: int  # Номер документа (число)
+    formatted_number: str  # Форматированный номер (например, "178-01")
     outgoing_date: str  # Дата в формате ДД.ММ.ГГГГ
     to_whom: str  # Кому (из названия карточки)
     executor: str  # Исполнитель
@@ -409,7 +410,7 @@ PDF файл: {pdf_file_path.name}
 
         # 4. Создаём папку и сохраняем файлы в /mnt/doc/Исходящие/{номер}
         from app.core.config import settings
-        outgoing_folder = Path(settings.OUTGOING_FILES_PATH) / str(data.outgoing_no)
+        outgoing_folder = Path(settings.OUTGOING_FILES_PATH) / data.formatted_number
 
         print(f"[Outbox] Creating folder: {outgoing_folder}")
         try:
@@ -459,7 +460,8 @@ PDF файл: {pdf_file_path.name}
 
         print(f"[Outbox] Creating journal entry...")
         journal_entry = OutboxJournal(
-            outgoing_no=data.outgoing_no,
+            outgoing_no=data.outgoing_no,  # Числовая часть (например, 178)
+            formatted_number=data.formatted_number,  # Полный форматированный номер (например, "178-01")
             outgoing_date=outgoing_date_obj,
             to_whom=data.to_whom,
             executor=data.executor,

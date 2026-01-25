@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { outboxApi } from '../services/api';
 
-const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, outgoingDate, toWhom, executor, onSuccess }) => {
+const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, onSuccess }) => {
   const [certificates, setCertificates] = useState([]);
   const [selectedCert, setSelectedCert] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -204,6 +204,7 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, ou
         // Данные для записи в журнал
         card_id: cardId,
         outgoing_no: outgoingNo,
+        formatted_number: formattedNumber,
         outgoing_date: outgoingDate,
         to_whom: toWhom,
         executor: executor

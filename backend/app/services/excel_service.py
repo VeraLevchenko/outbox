@@ -76,7 +76,7 @@ class ExcelService:
 
             # Исходящий номер
             cell = ws.cell(row=row_num, column=2)
-            cell.value = entry.outgoing_no
+            cell.value = entry.formatted_number  # Форматированный номер (например, "178-01")
             cell.alignment = Alignment(horizontal="center")
             cell.border = border
 

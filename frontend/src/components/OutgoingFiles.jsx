@@ -396,6 +396,7 @@ const OutgoingFiles = ({ cardId }) => {
           pdfFile={registrationResult.file_id + '_' + registrationResult.formatted_number.replace(/[\/\-\\]/g, '_') + '_' + registrationResult.outgoing_date.replace(/\./g, '_') + '_' + selectedFile.name.replace(/\s/g, '_').replace(/[()[\]]/g, '').replace('.docx', '.pdf')}
           cardId={cardId}
           outgoingNo={registrationResult.outgoing_no}
+          formattedNumber={registrationResult.formatted_number}
           outgoingDate={registrationResult.outgoing_date}
           toWhom={cardTitle}
           executor={registrationResult.executor}

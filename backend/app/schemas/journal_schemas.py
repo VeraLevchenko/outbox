@@ -25,7 +25,8 @@ class JournalEntryCreate(BaseModel):
 class JournalEntryResponse(BaseModel):
     """Схема для ответа с записью журнала"""
     id: int
-    outgoing_no: int
+    outgoing_no: int  # Числовая часть
+    formatted_number: str  # Полный форматированный номер (например, "178-01")
     outgoing_date: date
     to_whom: str | None = None
     executor: str | None = None
@@ -38,10 +39,11 @@ class JournalEntryResponse(BaseModel):
             "example": {
                 "id": 1,
                 "outgoing_no": 123,
+                "formatted_number": "123-01",
                 "outgoing_date": "2025-01-18",
                 "to_whom": "Министерство финансов РФ",
                 "executor": "Иванов И.П.",
-                "folder_path": "/mnt/doc/Исходящие/2025/01/123",
+                "folder_path": "/mnt/doc/Исходящие/123-01",
                 "created_at": "2025-01-18T10:30:00"
             }
         }
