@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 from typing import List
+from pathlib import Path
 from app.services.file_service import file_service
 from app.services.kaiten_service import kaiten_service
 from app.schemas.file_schemas import (
@@ -165,3 +167,36 @@ async def get_all_files_for_card(card_id: int):
         return all_files
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching all files: {str(e)}")
+
+
+@router.get("/download")
+async def download_file(file_path: str = Query(..., description="Путь к файлу")):
+    """
+    Скачать файл по пути
+
+    Args:
+        file_path: Полный путь к файлу на сервере
+
+    Returns:
+        Файл для скачивания/просмотра
+    """
+    try:
+        path = Path(file_path)
+
+        # Проверка существования файла
+        if not path.exists():
+            raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+
+        if not path.is_file():
+            raise HTTPException(status_code=400, detail=f"Path is not a file: {file_path}")
+
+        # Вернуть файл
+        return FileResponse(
+            path=str(path),
+            filename=path.name,
+            media_type="application/octet-stream"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
