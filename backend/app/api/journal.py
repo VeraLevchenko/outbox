@@ -180,22 +180,24 @@ async def update_journal_entry(
         if not entry:
             raise HTTPException(status_code=404, detail=f"Journal entry {entry_id} not found")
 
-        # Проверяем уникальность outgoing_no, если он изменяется
-        if entry_update.outgoing_no is not None and entry_update.outgoing_no != entry.outgoing_no:
+        # Проверяем уникальность formatted_number, если он изменяется
+        if entry_update.formatted_number is not None and entry_update.formatted_number != entry.formatted_number:
             existing = db.query(OutboxJournal).filter(
-                OutboxJournal.outgoing_no == entry_update.outgoing_no,
+                OutboxJournal.formatted_number == entry_update.formatted_number,
                 OutboxJournal.id != entry_id
             ).first()
 
             if existing:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Outgoing number {entry_update.outgoing_no} already exists"
+                    detail=f"Formatted number {entry_update.formatted_number} already exists"
                 )
 
         # Обновляем поля
         if entry_update.outgoing_no is not None:
             entry.outgoing_no = entry_update.outgoing_no
+        if entry_update.formatted_number is not None:
+            entry.formatted_number = entry_update.formatted_number
         if entry_update.outgoing_date is not None:
             entry.outgoing_date = entry_update.outgoing_date
         if entry_update.to_whom is not None:
@@ -211,6 +213,7 @@ async def update_journal_entry(
         return JournalEntryResponse(
             id=entry.id,
             outgoing_no=entry.outgoing_no,
+            formatted_number=entry.formatted_number,
             outgoing_date=entry.outgoing_date,
             to_whom=entry.to_whom,
             executor=entry.executor,

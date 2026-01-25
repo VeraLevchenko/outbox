@@ -52,6 +52,7 @@ class JournalEntryResponse(BaseModel):
 class JournalEntryUpdate(BaseModel):
     """Схема для обновления записи в журнале"""
     outgoing_no: int | None = None
+    formatted_number: str | None = None
     outgoing_date: date | None = None
     to_whom: str | None = None
     executor: str | None = None
@@ -61,6 +62,7 @@ class JournalEntryUpdate(BaseModel):
         json_schema_extra = {
             "example": {
                 "outgoing_no": 124,
+                "formatted_number": "124-01",
                 "outgoing_date": "2025-01-19",
                 "to_whom": "Министерство образования РФ",
                 "executor": "Петров П.И.",
