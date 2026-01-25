@@ -3,7 +3,7 @@ import { filesApi, kaitenApi, outboxApi } from '../services/api';
 import FileViewer from './FileViewer';
 import SigningModal from './SigningModal';
 
-const OutgoingFiles = ({ cardId }) => {
+const OutgoingFiles = ({ cardId, onCardsUpdate }) => {
   const [mainDocx, setMainDocx] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -400,8 +400,23 @@ const OutgoingFiles = ({ cardId }) => {
           outgoingDate={registrationResult.outgoing_date}
           toWhom={cardTitle}
           executor={registrationResult.executor}
-          onSuccess={() => {
+          onSuccess={async () => {
             setShowSigningModal(false);
+
+            // Перемещаем карточку в колонку "Отправка"
+            try {
+              await kaitenApi.moveCard(cardId, 'Отправка', 'Документ подписан');
+              console.log('[OutgoingFiles] Карточка перемещена в колонку "Отправка"');
+            } catch (err) {
+              console.error('[OutgoingFiles] Ошибка перемещения карточки:', err);
+              // Не показываем ошибку пользователю, так как документ уже подписан
+            }
+
+            // Обновляем список карточек, чтобы показать следующую
+            if (onCardsUpdate) {
+              await onCardsUpdate();
+            }
+
             alert('✅ Документ успешно подписан и запись добавлена в журнал!');
           }}
         />
