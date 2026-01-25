@@ -103,8 +103,7 @@ async def prepare_registration(
                 func.extract('year', OutboxJournal.outgoing_date) == current_year
             )
 
-        # Фильтруем по исполнителю
-        query = query.filter(OutboxJournal.executor == executor_name)
+        # Сквозная нумерация независимо от исполнителя - НЕ фильтруем по executor
 
         # Получаем максимальный номер
         max_no = query.scalar()
