@@ -9,6 +9,8 @@ router = APIRouter(prefix="/api/kaiten", tags=["kaiten"])
 class MoveCardRequest(BaseModel):
     target_column: str
     comment: Optional[str] = None
+    outgoing_no: Optional[str] = None
+    outgoing_date: Optional[str] = None
 
 
 @router.get("/cards")
@@ -55,7 +57,13 @@ async def move_card(
         Результат операции
     """
     try:
-        success = await kaiten_service.move_card(card_id, request.target_column, request.comment)
+        success = await kaiten_service.move_card(
+            card_id,
+            request.target_column,
+            request.comment,
+            request.outgoing_no,
+            request.outgoing_date
+        )
 
         if success:
             return {"status": "success", "message": f"Card {card_id} moved to '{request.target_column}'"}

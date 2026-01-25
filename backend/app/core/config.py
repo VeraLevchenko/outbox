@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     # Kaiten Properties
     KAITEN_PROPERTY_INCOMING_NO: str
     KAITEN_PROPERTY_INCOMING_DATE: str
+    KAITEN_PROPERTY_OUTGOING_NO: str
+    KAITEN_PROPERTY_OUTGOING_DATE: str
 
     # Application
     APP_HOST: str = "0.0.0.0"
