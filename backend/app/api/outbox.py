@@ -412,7 +412,13 @@ PDF файл: {pdf_file_path.name}
         outgoing_folder = Path(settings.OUTGOING_FILES_PATH) / str(data.outgoing_no)
 
         print(f"[Outbox] Creating folder: {outgoing_folder}")
-        outgoing_folder.mkdir(parents=True, exist_ok=True)
+        try:
+            outgoing_folder.mkdir(parents=True, exist_ok=True)
+        except PermissionError as e:
+            error_msg = f"Нет прав на создание папки {outgoing_folder}. Создайте папку вручную и настройте права: sudo mkdir -p {Path(settings.OUTGOING_FILES_PATH)} && sudo chown -R $USER:$USER {Path(settings.OUTGOING_FILES_PATH)}"
+            print(f"[Outbox] ERROR: Permission denied creating folder: {outgoing_folder}")
+            print(f"[Outbox] Please run: sudo mkdir -p {Path(settings.OUTGOING_FILES_PATH)} && sudo chown -R $USER:$USER {Path(settings.OUTGOING_FILES_PATH)}")
+            raise HTTPException(status_code=500, detail=error_msg)
 
         # Сохраняем PDF
         pdf_filename = pdf_file_path.name.replace(f"{data.file_id}_", "")  # Убираем file_id из имени
