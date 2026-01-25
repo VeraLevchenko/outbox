@@ -3,7 +3,7 @@ import { filesApi, kaitenApi, outboxApi } from '../services/api';
 import FileViewer from './FileViewer';
 import SigningModal from './SigningModal';
 
-const OutgoingFiles = ({ cardId, onCardsUpdate }) => {
+const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
   const [mainDocx, setMainDocx] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -14,6 +14,8 @@ const OutgoingFiles = ({ cardId, onCardsUpdate }) => {
   const [registering, setRegistering] = useState(false);
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showSigningModal, setShowSigningModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnComment, setReturnComment] = useState('');
   const [cardTitle, setCardTitle] = useState('');
 
   useEffect(() => {
@@ -117,6 +119,39 @@ const OutgoingFiles = ({ cardId, onCardsUpdate }) => {
       alert('Ошибка регистрации: ' + (err.response?.data?.detail || err.message));
     } finally {
       setRegistering(false);
+    }
+  };
+
+  const handleReturn = () => {
+    setShowReturnModal(true);
+    setReturnComment('');
+  };
+
+  const handleConfirmReturn = async () => {
+    try {
+      // Определяем целевую колонку в зависимости от роли
+      const targetColumn = userRole === 'director'
+        ? 'Проект готов. Согласование начальника отдела'
+        : 'В работе';
+
+      await kaitenApi.moveCard(
+        cardId,
+        targetColumn,
+        returnComment || 'Возвращено на доработку'
+      );
+
+      setShowReturnModal(false);
+      setReturnComment('');
+
+      // Обновляем список карточек
+      if (onCardsUpdate) {
+        await onCardsUpdate();
+      }
+
+      alert('Карточка возвращена на доработку');
+    } catch (err) {
+      console.error('Ошибка возврата карточки:', err);
+      alert('Ошибка возврата карточки: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -259,6 +294,34 @@ const OutgoingFiles = ({ cardId, onCardsUpdate }) => {
               }}
             >
               {registering ? 'Регистрация...' : 'Зарегистрировать и подписать'}
+            </button>
+
+            {/* Кнопка "Вернуть на доработку" */}
+            <button
+              onClick={handleReturn}
+              style={{
+                width: '100%',
+                marginTop: '8px',
+                padding: '10px 16px',
+                background: '#ffffff',
+                color: '#dc2626',
+                border: '2px solid #dc2626',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#dc2626';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.color = '#dc2626';
+              }}
+            >
+              Вернуть на доработку
             </button>
           </div>
         )}
@@ -426,6 +489,89 @@ const OutgoingFiles = ({ cardId, onCardsUpdate }) => {
             alert('✅ Документ успешно подписан и запись добавлена в журнал!');
           }}
         />
+      )}
+
+      {/* Модальное окно возврата на доработку */}
+      {showReturnModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '8px',
+            width: '500px',
+            maxWidth: '90%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#dc2626' }}>
+              Вернуть на доработку
+            </h3>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+                Комментарий (опционально):
+              </label>
+              <textarea
+                value={returnComment}
+                onChange={(e) => setReturnComment(e.target.value)}
+                placeholder="Укажите причину возврата..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowReturnModal(false)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleConfirmReturn}
+                style={{
+                  padding: '10px 20px',
+                  background: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Вернуть
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
