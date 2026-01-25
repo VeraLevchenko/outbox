@@ -163,8 +163,11 @@ class KaitenService:
                         properties[settings.KAITEN_PROPERTY_OUTGOING_NO] = outgoing_no
 
                     if outgoing_date:
-                        # Для свойства типа "дата" передаем просто строку в формате ISO
-                        properties[settings.KAITEN_PROPERTY_OUTGOING_DATE] = outgoing_date
+                        # Для свойства типа "дата" в Kaiten используется формат с from/to
+                        properties[settings.KAITEN_PROPERTY_OUTGOING_DATE] = {
+                            "from": outgoing_date,
+                            "to": outgoing_date
+                        }
 
                     payload["properties"] = properties
                     print(f"[Kaiten API] Setting properties: outgoing_no={outgoing_no}, outgoing_date={outgoing_date}")
