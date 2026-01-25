@@ -180,21 +180,31 @@ async def update_journal_entry(
         if not entry:
             raise HTTPException(status_code=404, detail=f"Journal entry {entry_id} not found")
 
-        # Проверяем уникальность outgoing_no, если он изменяется
-        if entry_update.outgoing_no is not None and entry_update.outgoing_no != entry.outgoing_no:
+        # Проверяем уникальность formatted_number, если он изменяется
+        if entry_update.formatted_number is not None and entry_update.formatted_number != entry.formatted_number:
             existing = db.query(OutboxJournal).filter(
-                OutboxJournal.outgoing_no == entry_update.outgoing_no,
+                OutboxJournal.formatted_number == entry_update.formatted_number,
                 OutboxJournal.id != entry_id
             ).first()
 
             if existing:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Outgoing number {entry_update.outgoing_no} already exists"
+                    detail=f"Formatted number {entry_update.formatted_number} already exists"
                 )
 
         # Обновляем поля
-        if entry_update.outgoing_no is not None:
+        if entry_update.formatted_number is not None:
+            entry.formatted_number = entry_update.formatted_number
+            # Извлекаем числовую часть из formatted_number (например, "4-01" -> 4)
+            try:
+                numeric_part = entry_update.formatted_number.split('-')[0]
+                entry.outgoing_no = int(numeric_part)
+            except (ValueError, IndexError):
+                # Если не удалось извлечь, оставляем как есть
+                pass
+        elif entry_update.outgoing_no is not None:
+            # Если обновляется только outgoing_no без formatted_number
             entry.outgoing_no = entry_update.outgoing_no
         if entry_update.outgoing_date is not None:
             entry.outgoing_date = entry_update.outgoing_date
@@ -211,6 +221,7 @@ async def update_journal_entry(
         return JournalEntryResponse(
             id=entry.id,
             outgoing_no=entry.outgoing_no,
+            formatted_number=entry.formatted_number,
             outgoing_date=entry.outgoing_date,
             to_whom=entry.to_whom,
             executor=entry.executor,
