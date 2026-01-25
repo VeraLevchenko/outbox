@@ -194,10 +194,18 @@ async def update_journal_entry(
                 )
 
         # Обновляем поля
-        if entry_update.outgoing_no is not None:
-            entry.outgoing_no = entry_update.outgoing_no
         if entry_update.formatted_number is not None:
             entry.formatted_number = entry_update.formatted_number
+            # Извлекаем числовую часть из formatted_number (например, "4-01" -> 4)
+            try:
+                numeric_part = entry_update.formatted_number.split('-')[0]
+                entry.outgoing_no = int(numeric_part)
+            except (ValueError, IndexError):
+                # Если не удалось извлечь, оставляем как есть
+                pass
+        elif entry_update.outgoing_no is not None:
+            # Если обновляется только outgoing_no без formatted_number
+            entry.outgoing_no = entry_update.outgoing_no
         if entry_update.outgoing_date is not None:
             entry.outgoing_date = entry_update.outgoing_date
         if entry_update.to_whom is not None:
