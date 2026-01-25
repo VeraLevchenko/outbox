@@ -307,12 +307,7 @@ async def get_next_outgoing_number(
                 func.extract('year', OutboxJournal.outgoing_date) == current_year
             )
 
-        # Если есть исполнитель, фильтруем по нему
-        if executor_id:
-            executor = config_service.get_executor_by_user_id(executor_id)
-            if executor:
-                executor_name = executor.get('full_name', '')
-                query = query.filter(OutboxJournal.executor == executor_name)
+        # Сквозная нумерация независимо от исполнителя - НЕ фильтруем по executor
 
         # Получаем максимальный номер
         max_no = query.scalar()
