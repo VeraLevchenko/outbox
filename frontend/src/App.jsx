@@ -8,7 +8,7 @@ import './App.css';
 
 function App() {
   const [mainTab, setMainTab] = useState('cards'); // 'cards' или 'journal'
-  const [subTab, setSubTab] = useState('incoming'); // 'incoming' или 'outgoing'
+  const [subTab, setSubTab] = useState('outgoing'); // 'incoming' или 'outgoing' - по умолчанию 'outgoing'
   const [cardId, setCardId] = useState(null);
   const [cards, setCards] = useState([]);
   const [user, setUser] = useState(null);
@@ -64,7 +64,7 @@ function App() {
     setCardId(null);
     setCards([]);
     setMainTab('cards');
-    setSubTab('incoming');
+    setSubTab('outgoing');
   };
 
   // Пока загружаемся
@@ -181,7 +181,7 @@ function App() {
       {/* Контент */}
       <div className="content">
         {mainTab === 'cards' && subTab === 'incoming' && <IncomingFiles cardId={cardId} />}
-        {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} />}
+        {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} onCardsUpdate={loadCards} />}
         {mainTab === 'journal' && <Journal />}
       </div>
     </div>
