@@ -163,10 +163,11 @@ class KaitenService:
                         properties[settings.KAITEN_PROPERTY_OUTGOING_NO] = outgoing_no
 
                     if outgoing_date:
-                        # Для свойства типа "дата" в Kaiten используется формат с from/to
+                        # Для свойства типа "дата" в Kaiten используется формат {date, time, tzOffset}
                         properties[settings.KAITEN_PROPERTY_OUTGOING_DATE] = {
-                            "from": outgoing_date,
-                            "to": outgoing_date
+                            "date": outgoing_date,
+                            "time": None,
+                            "tzOffset": None
                         }
 
                     payload["properties"] = properties
