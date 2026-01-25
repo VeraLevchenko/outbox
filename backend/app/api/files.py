@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from typing import List
 from pathlib import Path
+from urllib.parse import quote
 from app.services.file_service import file_service
 from app.services.kaiten_service import kaiten_service
 from app.schemas.file_schemas import (
@@ -204,11 +205,14 @@ async def download_file(file_path: str = Query(..., description="Путь к ф�
         }
         media_type = mime_types.get(extension, "application/octet-stream")
 
+        # Кодируем имя файла для поддержки кириллицы (RFC 5987)
+        filename_encoded = quote(path.name)
+
         # Вернуть файл с Content-Disposition: inline для просмотра в браузере
         return FileResponse(
             path=str(path),
             media_type=media_type,
-            headers={"Content-Disposition": f"inline; filename={path.name}"}
+            headers={"Content-Disposition": f"inline; filename*=UTF-8''{filename_encoded}"}
         )
     except HTTPException:
         raise
