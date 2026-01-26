@@ -155,6 +155,26 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
     }
   };
 
+  const handleSendToKirov71 = async () => {
+    try {
+      await kaitenApi.moveCard(
+        cardId,
+        'На подпись Кирова 71',
+        'Отправлено на подпись Кирова 71'
+      );
+
+      // Обновляем список карточек
+      if (onCardsUpdate) {
+        await onCardsUpdate();
+      }
+
+      alert('Карточка отправлена на подпись Кирова 71');
+    } catch (err) {
+      console.error('Ошибка отправки карточки:', err);
+      alert('Ошибка отправки карточки: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
   if (loading) {
     return <div style={{ padding: '32px', textAlign: 'center', color: '#6b7280', fontSize: '15px' }}>
       Загрузка исходящих файлов...
@@ -322,6 +342,34 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
               }}
             >
               Вернуть на доработку
+            </button>
+
+            {/* Кнопка "На подпись Кирова 71" */}
+            <button
+              onClick={handleSendToKirov71}
+              style={{
+                width: '100%',
+                marginTop: '8px',
+                padding: '10px 16px',
+                background: '#ffffff',
+                color: '#2563eb',
+                border: '2px solid #2563eb',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#2563eb';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.color = '#2563eb';
+              }}
+            >
+              На подпись Кирова 71
             </button>
           </div>
         )}
