@@ -7,7 +7,8 @@ import { kaitenApi, authApi } from './services/api';
 import './App.css';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('incoming');
+  const [mainTab, setMainTab] = useState('cards'); // 'cards' или 'journal'
+  const [subTab, setSubTab] = useState('outgoing'); // 'incoming' или 'outgoing' - по умолчанию 'outgoing'
   const [cardId, setCardId] = useState(null);
   const [cards, setCards] = useState([]);
   const [user, setUser] = useState(null);
@@ -62,7 +63,8 @@ function App() {
     setUser(null);
     setCardId(null);
     setCards([]);
-    setActiveTab('incoming');
+    setMainTab('cards');
+    setSubTab('outgoing');
   };
 
   // Пока загружаемся
@@ -142,33 +144,45 @@ function App() {
         </div>
       </header>
 
-      {/* Табы */}
+      {/* Главные табы */}
       <div className="tabs">
         <button
-          className={`tab ${activeTab === 'incoming' ? 'active' : ''}`}
-          onClick={() => setActiveTab('incoming')}
+          className={`tab ${mainTab === 'cards' ? 'active' : ''}`}
+          onClick={() => setMainTab('cards')}
         >
-          📥 Входящие
+          Карточки
         </button>
         <button
-          className={`tab ${activeTab === 'outgoing' ? 'active' : ''}`}
-          onClick={() => setActiveTab('outgoing')}
+          className={`tab ${mainTab === 'journal' ? 'active' : ''}`}
+          onClick={() => setMainTab('journal')}
         >
-          📤 Исходящие
-        </button>
-        <button
-          className={`tab ${activeTab === 'journal' ? 'active' : ''}`}
-          onClick={() => setActiveTab('journal')}
-        >
-          📖 Журнал
+          Журнал
         </button>
       </div>
 
+      {/* Подтабы для карточек */}
+      {mainTab === 'cards' && (
+        <div className="tabs" style={{ background: '#f9fafb', borderTop: '1px solid #e5e7eb' }}>
+          <button
+            className={`tab ${subTab === 'incoming' ? 'active' : ''}`}
+            onClick={() => setSubTab('incoming')}
+          >
+            Входящие
+          </button>
+          <button
+            className={`tab ${subTab === 'outgoing' ? 'active' : ''}`}
+            onClick={() => setSubTab('outgoing')}
+          >
+            Исходящие
+          </button>
+        </div>
+      )}
+
       {/* Контент */}
       <div className="content">
-        {activeTab === 'incoming' && <IncomingFiles cardId={cardId} />}
-        {activeTab === 'outgoing' && <OutgoingFiles cardId={cardId} />}
-        {activeTab === 'journal' && <Journal />}
+        {mainTab === 'cards' && subTab === 'incoming' && <IncomingFiles cardId={cardId} />}
+        {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} onCardsUpdate={loadCards} userRole={user?.role} />}
+        {mainTab === 'journal' && <Journal />}
       </div>
     </div>
   );

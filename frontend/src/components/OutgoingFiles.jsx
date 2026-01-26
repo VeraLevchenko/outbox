@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { filesApi } from '../services/api';
+import { filesApi, kaitenApi, outboxApi } from '../services/api';
 import FileViewer from './FileViewer';
+import SigningModal from './SigningModal';
 
-const OutgoingFiles = ({ cardId }) => {
+const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
   const [mainDocx, setMainDocx] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [executor, setExecutor] = useState(null);
+  const [executorLoading, setExecutorLoading] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [registrationResult, setRegistrationResult] = useState(null);
+  const [showSigningModal, setShowSigningModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnComment, setReturnComment] = useState('');
+  const [cardTitle, setCardTitle] = useState('');
 
   useEffect(() => {
     if (cardId) {
       loadFiles();
+      loadExecutor();
+      loadCardTitle();
     }
   }, [cardId]);
 
@@ -19,7 +30,10 @@ const OutgoingFiles = ({ cardId }) => {
     try {
       setLoading(true);
       setError(null);
+      console.log('[OutgoingFiles] Loading files for card:', cardId);
       const response = await filesApi.getOutgoingFiles(cardId);
+      console.log('[OutgoingFiles] Files loaded:', response.data);
+      console.log('[OutgoingFiles] Main DOCX:', response.data.main_docx);
       setMainDocx(response.data.main_docx);
       setAttachments(response.data.attachments || []);
 
@@ -174,6 +188,15 @@ const OutgoingFiles = ({ cardId }) => {
   }
 
   const allFiles = mainDocx ? [mainDocx, ...attachments] : attachments;
+
+  // Отладочная информация
+  console.log('[OutgoingFiles] Render state:', {
+    mainDocx: !!mainDocx,
+    executor: !!executor,
+    executorLoading,
+    registering,
+    cardId
+  });
 
   if (allFiles.length === 0) {
     return <div style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '15px' }}>
@@ -474,6 +497,130 @@ const OutgoingFiles = ({ cardId }) => {
           fileName={selectedFile?.name}
         />
       </div>
+
+      {/* Модальное окно подписания */}
+      {registrationResult && (
+        <SigningModal
+          isOpen={showSigningModal}
+          onClose={() => setShowSigningModal(false)}
+          fileId={registrationResult.file_id}
+          pdfFile={registrationResult.file_id + '_' + registrationResult.formatted_number.replace(/[\/\-\\]/g, '_') + '_' + registrationResult.outgoing_date.replace(/\./g, '_') + '_' + selectedFile.name.replace(/\s/g, '_').replace(/[()[\]]/g, '').replace('.docx', '.pdf')}
+          cardId={cardId}
+          outgoingNo={registrationResult.outgoing_no}
+          formattedNumber={registrationResult.formatted_number}
+          outgoingDate={registrationResult.outgoing_date}
+          toWhom={cardTitle}
+          executor={registrationResult.executor}
+          onSuccess={async () => {
+            setShowSigningModal(false);
+
+            // Перемещаем карточку в колонку "Отправка" с проставлением исходящего номера и даты
+            try {
+              await kaitenApi.moveCard(
+                cardId,
+                'Отправка',
+                'Документ подписан',
+                registrationResult.formatted_number,
+                registrationResult.outgoing_date.split('.').reverse().join('-') // Конвертируем DD.MM.YYYY в YYYY-MM-DD
+              );
+              console.log('[OutgoingFiles] Карточка перемещена в колонку "Отправка"');
+            } catch (err) {
+              console.error('[OutgoingFiles] Ошибка перемещения карточки:', err);
+              // Не показываем ошибку пользователю, так как документ уже подписан
+            }
+
+            // Обновляем список карточек, чтобы показать следующую
+            if (onCardsUpdate) {
+              await onCardsUpdate();
+            }
+
+            alert('✅ Документ успешно подписан и запись добавлена в журнал!');
+          }}
+        />
+      )}
+
+      {/* Модальное окно возврата на доработку */}
+      {showReturnModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '8px',
+            width: '500px',
+            maxWidth: '90%',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#dc2626' }}>
+              Вернуть на доработку
+            </h3>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+                Комментарий (опционально):
+              </label>
+              <textarea
+                value={returnComment}
+                onChange={(e) => setReturnComment(e.target.value)}
+                placeholder="Укажите причину возврата..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowReturnModal(false)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleConfirmReturn}
+                style={{
+                  padding: '10px 20px',
+                  background: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Вернуть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

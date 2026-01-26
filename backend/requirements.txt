@@ -20,8 +20,11 @@ python-multipart==0.0.6
 # CORS
 python-dotenv==1.0.0
 
-# Для работы с DOCX/PDF (будет нужно позже)
+# Для работы с DOCX/PDF
 python-docx==1.1.0
 
 # Для работы с Excel файлами
 openpyxl==3.1.2
+
+# Примечание: для конвертации DOCX->PDF требуется LibreOffice
+# Установка на сервере: apt-get install -y libreoffice-writer libreoffice-common

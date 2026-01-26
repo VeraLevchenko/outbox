@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import asyncio
+from pathlib import Path
 from app.core.config import settings
-from app.api import kaiten, files, auth, journal
+from app.api import kaiten, files, auth, journal, outbox
 from app.services.kaiten_service import kaiten_service
 
 
@@ -63,6 +66,12 @@ app.include_router(auth.router)
 app.include_router(kaiten.router)
 app.include_router(files.router)
 app.include_router(journal.router)
+app.include_router(outbox.router)
+
+# Монтируем статические файлы
+STATIC_DIR = Path(__file__).parent.parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/")
@@ -72,6 +81,15 @@ async def root():
         "version": "0.1.0",
         "status": "running"
     }
+
+
+@app.get("/sign.html")
+async def sign_page():
+    """Страница для подписания документов через КриптоПро"""
+    sign_html_path = STATIC_DIR / "sign.html"
+    if not sign_html_path.exists():
+        return {"error": "sign.html not found"}
+    return FileResponse(sign_html_path, media_type="text/html")
 
 
 @app.get("/health")

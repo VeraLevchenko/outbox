@@ -8,11 +8,16 @@ class OutboxJournal(Base):
     __tablename__ = "outbox_journal"
 
     id = Column(Integer, primary_key=True, index=True)
-    outgoing_no = Column(Integer, unique=True, nullable=False, index=True)
+    outgoing_no = Column(Integer, nullable=False, index=True)  # Числовая часть номера (например, 178)
+    formatted_number = Column(String, unique=True, nullable=False)  # Полный форматированный номер (например, "178-01")
     outgoing_date = Column(Date, nullable=False)
     to_whom = Column(String, nullable=True)
     executor = Column(String, nullable=True)
+    content = Column(String, nullable=True)  # Краткое содержание
+    kaiten_card_url = Column(String, nullable=True)  # Ссылка на карточку Kaiten
     file_blob = Column(LargeBinary, nullable=True)  # PDF письма
+    sig_blob = Column(LargeBinary, nullable=True)  # Файл подписи .sig
+    attachments_blob = Column(LargeBinary, nullable=True)  # Приложения (архив)
     folder_path = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -1,5 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 from typing import List
+from pathlib import Path
+from urllib.parse import quote
 from app.services.file_service import file_service
 from app.services.kaiten_service import kaiten_service
 from app.schemas.file_schemas import (
@@ -90,8 +93,12 @@ async def get_outgoing_files(card_id: int):
             total += 1
         total += len(files_data["attachments"])
 
+        # Извлекаем название карточки (для поля "Кому")
+        card_title = card.get('title', '')
+
         return OutgoingFilesResponse(
             card_id=card_id,
+            card_title=card_title,
             main_docx=files_data["main_docx"],
             attachments=files_data["attachments"],
             total_files=total
@@ -161,3 +168,53 @@ async def get_all_files_for_card(card_id: int):
         return all_files
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching all files: {str(e)}")
+
+
+@router.get("/download")
+async def download_file(file_path: str = Query(..., description="Путь к файлу")):
+    """
+    Скачать файл по пути
+
+    Args:
+        file_path: Полный путь к файлу на сервере
+
+    Returns:
+        Файл для скачивания/просмотра
+    """
+    try:
+        path = Path(file_path)
+
+        # Проверка существования файла
+        if not path.exists():
+            raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+
+        if not path.is_file():
+            raise HTTPException(status_code=400, detail=f"Path is not a file: {file_path}")
+
+        # Определяем MIME тип по расширению
+        extension = path.suffix.lower()
+        mime_types = {
+            ".pdf": "application/pdf",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".doc": "application/msword",
+            ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".xls": "application/vnd.ms-excel",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+        }
+        media_type = mime_types.get(extension, "application/octet-stream")
+
+        # Кодируем имя файла для поддержки кириллицы (RFC 5987)
+        filename_encoded = quote(path.name)
+
+        # Вернуть файл с Content-Disposition: inline для просмотра в браузере
+        return FileResponse(
+            path=str(path),
+            media_type=media_type,
+            headers={"Content-Disposition": f"inline; filename*=UTF-8''{filename_encoded}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
