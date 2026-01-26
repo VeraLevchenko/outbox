@@ -132,6 +132,14 @@ class KaitenService:
             column_id = settings.KAITEN_COLUMN_OUTBOX_ID
         elif target_column == "Проект готов. Согласование начальника отдела":
             column_id = settings.KAITEN_COLUMN_HEAD_REVIEW_ID
+        elif target_column == "На доработку":
+            column_id = settings.KAITEN_COLUMN_REWORK_ID
+        elif target_column == "На подпись Кирова 71":
+            column_id = settings.KAITEN_COLUMN_KIROV_71_ID
+        elif target_column == "В работе":
+            # Для начальника отдела - возврат в "В работе"
+            # Используем ID из settings если он есть, иначе оставляем None
+            column_id = None  # Нужно добавить в .env если требуется
 
         if not column_id:
             print(f"Unknown target column: {target_column}")

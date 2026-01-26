@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     KAITEN_COLUMN_TO_SIGN_ID: int
     KAITEN_COLUMN_OUTBOX_ID: int
     KAITEN_COLUMN_HEAD_REVIEW_ID: int
+    KAITEN_COLUMN_REWORK_ID: int  # Колонка для возврата на доработку (для директора)
+    KAITEN_COLUMN_KIROV_71_ID: int  # Колонка "На подпись Кирова 71"
 
     # Kaiten Properties
     KAITEN_PROPERTY_INCOMING_NO: str
