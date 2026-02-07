@@ -30,6 +30,7 @@ class ExcelService:
             "Исходящий номер",
             "Дата",
             "Кому",
+            "Краткое содержание",
             "Исполнитель",
             "Путь к файлам"
         ]
@@ -60,8 +61,9 @@ class ExcelService:
         ws.column_dimensions['B'].width = 15  # Исходящий номер
         ws.column_dimensions['C'].width = 12  # Дата
         ws.column_dimensions['D'].width = 40  # Кому
-        ws.column_dimensions['E'].width = 25  # Исполнитель
-        ws.column_dimensions['F'].width = 50  # Путь
+        ws.column_dimensions['E'].width = 50  # Краткое содержание
+        ws.column_dimensions['F'].width = 25  # Исполнитель
+        ws.column_dimensions['G'].width = 50  # Путь
 
         # Стили для данных
         data_alignment = Alignment(vertical="top", wrap_text=True)
@@ -92,14 +94,20 @@ class ExcelService:
             cell.alignment = data_alignment
             cell.border = border
 
-            # Исполнитель
+            # Краткое содержание
             cell = ws.cell(row=row_num, column=5)
+            cell.value = entry.content or ""
+            cell.alignment = data_alignment
+            cell.border = border
+
+            # Исполнитель
+            cell = ws.cell(row=row_num, column=6)
             cell.value = entry.executor or ""
             cell.alignment = data_alignment
             cell.border = border
 
             # Путь
-            cell = ws.cell(row=row_num, column=6)
+            cell = ws.cell(row=row_num, column=7)
             cell.value = entry.folder_path or ""
             cell.alignment = data_alignment
             cell.border = border
