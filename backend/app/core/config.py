@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     KAITEN_PROPERTY_INCOMING_DATE: str
     KAITEN_PROPERTY_OUTGOING_NO: str
     KAITEN_PROPERTY_OUTGOING_DATE: str
-    KAITEN_PROPERTY_CONTENT: str = "id_475860"  # Краткое содержание
+    KAITEN_PROPERTY_CONTENT: str  # Краткое содержание
 
     # Application
     APP_HOST: str = "0.0.0.0"
