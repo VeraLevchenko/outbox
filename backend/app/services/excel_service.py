@@ -68,9 +68,9 @@ class ExcelService:
 
         # Записываем данные
         for row_num, entry in enumerate(entries, 2):
-            # № п/п
+            # № п/п — числовая часть исходящего номера (например, "179-11" → 179)
             cell = ws.cell(row=row_num, column=1)
-            cell.value = row_num - 1
+            cell.value = entry.outgoing_no
             cell.alignment = Alignment(horizontal="center")
             cell.border = border
 
