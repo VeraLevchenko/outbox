@@ -188,6 +188,10 @@ class KaitenService:
                 if response.status_code in [200, 201]:
                     print(f"[Kaiten API] Card {card_id} moved to '{target_column}' (ID: {column_id})")
 
+                    # Добавляем тег "распечатать" при перемещении в "На подпись Кирова 71"
+                    if target_column == "На подпись Кирова 71":
+                        await self.add_tag(card_id, settings.KAITEN_TAG_PRINT_ID)
+
                     # Добавляем комментарий, если он указан
                     if comment:
                         await self.add_comment(card_id, comment)
@@ -228,6 +232,36 @@ class KaitenService:
                     return False
             except Exception as e:
                 print(f"[Kaiten API] Failed to add comment to card {card_id}: {e}")
+                return False
+
+    async def add_tag(self, card_id: int, tag_id: int) -> bool:
+        """
+        Добавить тег к карточке
+
+        Args:
+            card_id: ID карточки
+            tag_id: ID тега
+
+        Returns:
+            bool: True если успешно
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{self.api_url}/cards/{card_id}/tags",
+                    headers=self.headers,
+                    json={"tag_id": tag_id},
+                    timeout=10.0
+                )
+
+                if response.status_code in [200, 201]:
+                    print(f"[Kaiten API] Tag {tag_id} added to card {card_id}")
+                    return True
+                else:
+                    print(f"[Kaiten API] Error adding tag {tag_id} to card {card_id}: {response.status_code}, Response: {response.text}")
+                    return False
+            except Exception as e:
+                print(f"[Kaiten API] Failed to add tag {tag_id} to card {card_id}: {e}")
                 return False
 
     async def get_card_by_id(self, card_id: int) -> Optional[Dict]:
