@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     KAITEN_PROPERTY_CONTENT: str = "id_475860"  # Краткое содержание
 
     # Kaiten Tags
-    KAITEN_TAG_PRINT_ID: int = 997546  # Тег "распечатать"
+    KAITEN_TAG_PRINT_ID: int  # Тег "распечатать"
 
     # Application
     APP_HOST: str = "0.0.0.0"
