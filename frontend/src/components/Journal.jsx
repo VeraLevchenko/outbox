@@ -87,6 +87,7 @@ const Journal = () => {
       formatted_number: entry.formatted_number,
       outgoing_date: entry.outgoing_date,
       to_whom: entry.to_whom || '',
+      content: entry.content || '',
       executor: entry.executor || '',
       folder_path: entry.folder_path || ''
     });
@@ -100,6 +101,7 @@ const Journal = () => {
       formatted_number: '',
       outgoing_date: today,
       to_whom: '',
+      content: '',
       executor: '',
       folder_path: ''
     });
@@ -291,6 +293,7 @@ const Journal = () => {
                 <th style={headerStyle}>Исх. номер</th>
                 <th style={headerStyle}>Дата</th>
                 <th style={headerStyle}>Кому</th>
+                <th style={headerStyle}>Краткое содержание</th>
                 <th style={headerStyle}>Исполнитель</th>
                 <th style={headerStyle}>Путь к файлам</th>
                 <th style={headerStyle}>Действия</th>
@@ -311,6 +314,7 @@ const Journal = () => {
                   <td style={{...cellStyle, fontWeight: '500'}}>{entry.formatted_number}</td>
                   <td style={cellStyle}>{formatDate(entry.outgoing_date)}</td>
                   <td style={cellStyle}>{entry.to_whom || '-'}</td>
+                  <td style={{...cellStyle, maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis'}} title={entry.content || ''}>{entry.content || '-'}</td>
                   <td style={cellStyle}>{entry.executor || '-'}</td>
                   <td style={{...cellStyle, fontSize: '12px', color: '#666'}}>
                     {entry.folder_path || '-'}
@@ -488,6 +492,25 @@ const Journal = () => {
 
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Краткое содержание:
+              </label>
+              <textarea
+                value={formData.content || ''}
+                onChange={(e) => setFormData({...formData, content: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  minHeight: '60px',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
                 Исполнитель:
               </label>
               <input
@@ -650,6 +673,25 @@ const Journal = () => {
                   border: '1px solid #d1d5db',
                   borderRadius: '4px',
                   fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Краткое содержание:
+              </label>
+              <textarea
+                value={formData.content || ''}
+                onChange={(e) => setFormData({...formData, content: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  minHeight: '60px',
+                  resize: 'vertical'
                 }}
               />
             </div>

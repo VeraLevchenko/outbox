@@ -9,6 +9,7 @@ class JournalEntryCreate(BaseModel):
     outgoing_date: date
     to_whom: str | None = None
     executor: str | None = None
+    content: str | None = None
     folder_path: str | None = None
 
     class Config:
@@ -32,6 +33,7 @@ class JournalEntryResponse(BaseModel):
     outgoing_date: date
     to_whom: str | None = None
     executor: str | None = None
+    content: str | None = None  # Краткое содержание
     folder_path: str | None = None
     created_at: str
 
@@ -58,6 +60,7 @@ class JournalEntryUpdate(BaseModel):
     outgoing_date: date | None = None
     to_whom: str | None = None
     executor: str | None = None
+    content: str | None = None
     folder_path: str | None = None
 
     class Config:
