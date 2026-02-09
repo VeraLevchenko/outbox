@@ -178,6 +178,11 @@ class KaitenService:
                     payload["properties"] = properties
                     print(f"[Kaiten API] Setting properties: outgoing_no={outgoing_no}, outgoing_date={outgoing_date}")
 
+                # Добавляем тег "распечатать" при перемещении в "На подпись Кирова 71"
+                if target_column == "На подпись Кирова 71":
+                    payload["tag_ids"] = [settings.KAITEN_TAG_PRINT_ID]
+                    print(f"[Kaiten API] Adding tag 'распечатать' (ID: {settings.KAITEN_TAG_PRINT_ID})")
+
                 response = await client.patch(
                     f"{self.api_url}/cards/{card_id}",
                     headers=self.headers,
@@ -187,10 +192,6 @@ class KaitenService:
 
                 if response.status_code in [200, 201]:
                     print(f"[Kaiten API] Card {card_id} moved to '{target_column}' (ID: {column_id})")
-
-                    # Добавляем тег "распечатать" при перемещении в "На подпись Кирова 71"
-                    if target_column == "На подпись Кирова 71":
-                        await self.add_tag(card_id, settings.KAITEN_TAG_PRINT_ID)
 
                     # Добавляем комментарий, если он указан
                     if comment:
