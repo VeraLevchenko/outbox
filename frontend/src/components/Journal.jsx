@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { journalApi } from '../services/api';
 
+const PAGE_SIZE = 100;
+
 const Journal = () => {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,23 +12,35 @@ const Journal = () => {
   const [editingEntry, setEditingEntry] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({});
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalEntries, setTotalEntries] = useState(0);
 
   useEffect(() => {
-    loadEntries();
+    setCurrentPage(0);
+    loadEntries(0);
   }, [yearFilter, monthFilter]);
 
-  const loadEntries = async () => {
+  useEffect(() => {
+    loadEntries(currentPage);
+  }, [currentPage]);
+
+  const loadEntries = async (page) => {
     try {
       setLoading(true);
       setError(null);
 
-      const params = { year: yearFilter };
+      const params = {
+        year: yearFilter,
+        skip: (page ?? currentPage) * PAGE_SIZE,
+        limit: PAGE_SIZE
+      };
       if (monthFilter) {
         params.month = monthFilter;
       }
 
       const response = await journalApi.getEntries(params);
       setEntries(response.data.entries || []);
+      setTotalEntries(response.data.total || 0);
     } catch (err) {
       setError('Ошибка загрузки журнала: ' + err.message);
       console.error(err);
@@ -73,6 +87,7 @@ const Journal = () => {
       formatted_number: entry.formatted_number,
       outgoing_date: entry.outgoing_date,
       to_whom: entry.to_whom || '',
+      content: entry.content || '',
       executor: entry.executor || '',
       folder_path: entry.folder_path || ''
     });
@@ -86,6 +101,7 @@ const Journal = () => {
       formatted_number: '',
       outgoing_date: today,
       to_whom: '',
+      content: '',
       executor: '',
       folder_path: ''
     });
@@ -264,7 +280,7 @@ const Journal = () => {
           Нет записей за выбранный период
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 220px)' }}>
           <table style={{
             width: '100%',
             borderCollapse: 'collapse',
@@ -272,11 +288,12 @@ const Journal = () => {
             border: '1px solid #e5e7eb'
           }}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr style={{ background: '#f5f5f5', position: 'sticky', top: 0, zIndex: 1 }}>
                 <th style={headerStyle}>№ п/п</th>
                 <th style={headerStyle}>Исх. номер</th>
                 <th style={headerStyle}>Дата</th>
                 <th style={headerStyle}>Кому</th>
+                <th style={headerStyle}>Краткое содержание</th>
                 <th style={headerStyle}>Исполнитель</th>
                 <th style={headerStyle}>Путь к файлам</th>
                 <th style={headerStyle}>Действия</th>
@@ -293,10 +310,11 @@ const Journal = () => {
                   onMouseEnter={(e) => e.currentTarget.style.background = '#f9f9f9'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                 >
-                  <td style={cellStyle}>{index + 1}</td>
+                  <td style={cellStyle}>{entry.outgoing_no}</td>
                   <td style={{...cellStyle, fontWeight: '500'}}>{entry.formatted_number}</td>
                   <td style={cellStyle}>{formatDate(entry.outgoing_date)}</td>
                   <td style={cellStyle}>{entry.to_whom || '-'}</td>
+                  <td style={{...cellStyle, maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis'}} title={entry.content || ''}>{entry.content || '-'}</td>
                   <td style={cellStyle}>{entry.executor || '-'}</td>
                   <td style={{...cellStyle, fontSize: '12px', color: '#666'}}>
                     {entry.folder_path || '-'}
@@ -337,14 +355,59 @@ const Journal = () => {
             </tbody>
           </table>
 
-          <div style={{
-            marginTop: '15px',
-            textAlign: 'right',
-            color: '#666',
-            fontSize: '14px'
-          }}>
-            Всего записей: {entries.length}
-          </div>
+          {/* Пагинация */}
+          {(() => {
+            const totalPages = Math.ceil(totalEntries / PAGE_SIZE);
+            return (
+              <div style={{
+                marginTop: '15px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                color: '#666',
+                fontSize: '14px'
+              }}>
+                <span>
+                  Показано {currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, totalEntries)} из {totalEntries}
+                </span>
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <button
+                      onClick={() => setCurrentPage(0)}
+                      disabled={currentPage === 0}
+                      style={paginationBtnStyle(currentPage === 0)}
+                    >
+                      &laquo;
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => p - 1)}
+                      disabled={currentPage === 0}
+                      style={paginationBtnStyle(currentPage === 0)}
+                    >
+                      &lsaquo;
+                    </button>
+                    <span style={{ padding: '0 8px' }}>
+                      Стр. {currentPage + 1} из {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      disabled={currentPage >= totalPages - 1}
+                      style={paginationBtnStyle(currentPage >= totalPages - 1)}
+                    >
+                      &rsaquo;
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages - 1)}
+                      disabled={currentPage >= totalPages - 1}
+                      style={paginationBtnStyle(currentPage >= totalPages - 1)}
+                    >
+                      &raquo;
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -423,6 +486,25 @@ const Journal = () => {
                   border: '1px solid #d1d5db',
                   borderRadius: '4px',
                   fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Краткое содержание:
+              </label>
+              <textarea
+                value={formData.content || ''}
+                onChange={(e) => setFormData({...formData, content: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  minHeight: '60px',
+                  resize: 'vertical'
                 }}
               />
             </div>
@@ -597,6 +679,25 @@ const Journal = () => {
 
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                Краткое содержание:
+              </label>
+              <textarea
+                value={formData.content || ''}
+                onChange={(e) => setFormData({...formData, content: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  minHeight: '60px',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
                 Исполнитель:
               </label>
               <input
@@ -681,5 +782,16 @@ const cellStyle = {
   padding: '12px',
   textAlign: 'left'
 };
+
+const paginationBtnStyle = (disabled) => ({
+  padding: '6px 10px',
+  background: disabled ? '#e5e7eb' : '#4b5563',
+  color: disabled ? '#9ca3af' : 'white',
+  border: 'none',
+  borderRadius: '4px',
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  fontSize: '14px',
+  fontWeight: '600'
+});
 
 export default Journal;

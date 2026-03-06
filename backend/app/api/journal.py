@@ -69,9 +69,9 @@ async def get_journal_entries(
         # Общее количество
         total = query.count()
 
-        # Получаем записи
+        # Получаем записи (сортировка от большего номера к меньшему)
         entries = query.order_by(
-            OutboxJournal.outgoing_date.desc()
+            OutboxJournal.outgoing_no.desc()
         ).offset(skip).limit(limit).all()
 
         # Форматируем ответ
@@ -83,6 +83,7 @@ async def get_journal_entries(
                 outgoing_date=entry.outgoing_date,
                 to_whom=entry.to_whom,
                 executor=entry.executor,
+                content=entry.content,
                 folder_path=entry.folder_path,
                 created_at=entry.created_at.isoformat() if entry.created_at else ""
             )
@@ -142,6 +143,7 @@ async def create_journal_entry(
             outgoing_date=entry.outgoing_date,
             to_whom=entry.to_whom,
             executor=entry.executor,
+            content=entry.content,
             folder_path=entry.folder_path
         )
 
@@ -156,6 +158,7 @@ async def create_journal_entry(
             outgoing_date=new_entry.outgoing_date,
             to_whom=new_entry.to_whom,
             executor=new_entry.executor,
+            content=new_entry.content,
             folder_path=new_entry.folder_path,
             created_at=new_entry.created_at.isoformat() if new_entry.created_at else ""
         )
@@ -225,6 +228,8 @@ async def update_journal_entry(
             entry.to_whom = entry_update.to_whom
         if entry_update.executor is not None:
             entry.executor = entry_update.executor
+        if entry_update.content is not None:
+            entry.content = entry_update.content
         if entry_update.folder_path is not None:
             entry.folder_path = entry_update.folder_path
 
@@ -238,6 +243,7 @@ async def update_journal_entry(
             outgoing_date=entry.outgoing_date,
             to_whom=entry.to_whom,
             executor=entry.executor,
+            content=entry.content,
             folder_path=entry.folder_path,
             created_at=entry.created_at.isoformat() if entry.created_at else ""
         )
@@ -411,8 +417,8 @@ async def export_journal_to_xlsx(
                 func.extract('month', OutboxJournal.outgoing_date) == month
             )
 
-        # Получаем записи
-        entries = query.order_by(OutboxJournal.outgoing_date.desc()).all()
+        # Получаем записи (сортировка от большего номера к меньшему)
+        entries = query.order_by(OutboxJournal.outgoing_no.desc()).all()
 
         # Генерируем Excel файл
         excel_buffer = excel_service.generate_journal_xlsx(entries)

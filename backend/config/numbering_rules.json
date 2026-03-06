@@ -1,0 +1,249 @@
+{
+  "rules": {
+    "442909": {
+      "executor_name": "Левченко В.С.",
+      "executor_code": "01",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "488861": {
+      "executor_name": "Габидулина Р.Р.",
+      "executor_code": "02",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "888238": {
+      "executor_name": "Бейгель А.Н.",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "961770": {
+      "executor_name": "Любимова А.П.",
+      "executor_code": "01",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "944454": {
+      "executor_name": "Левашов А.А.",
+      "executor_code": "11",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "443920": {
+      "executor_name": "Куртукова А.М.",
+      "executor_code": "11",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "879379": {
+      "executor_name": "Мочалока А.К.",
+      "executor_code": "04",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "880094": {
+      "executor_name": "Богачева Е.",
+      "executor_code": "07",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "878688": {
+      "executor_name": "Таланова В.В.",
+      "executor_code": "01",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "885034": {
+      "executor_name": "Орлова В.",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "879380": {
+      "executor_name": "Горская Т.К.",
+      "executor_code": "10",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "879494": {
+      "executor_name": "Граубергер Т.С.",
+      "executor_code": "07",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "879367": {
+      "executor_name": "Дорозова Д.Г.",
+      "executor_code": "09",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "531592": {
+      "executor_name": "Свиленок Е.М.",
+      "executor_code": "12",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "895378": {
+      "executor_name": "Маркушева Е.П.",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "885038": {
+      "executor_name": "Власова Ею",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "931400": {
+      "executor_name": "Кроваткина Е.В.",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "915874": {
+      "executor_name": "Ейбог И.Н.",
+      "executor_code": "05",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "886813": {
+      "executor_name": "Гизатулина И.В.",
+      "executor_code": "11",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "885044": {
+      "executor_name": "Ляпина К.",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "923415": {
+      "executor_name": "Лазарева Э.С.",
+      "executor_code": "12",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "879381": {
+      "executor_name": "Мезенцева Д.В.",
+      "executor_code": "03",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "916094": {
+      "executor_name": "Жилина Н.В.",
+      "executor_code": "10",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "457379": {
+      "executor_name": "Музыкантова Н.В.",
+      "executor_code": "11",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "657322": {
+      "executor_name": "Уютова О.Ю",
+      "executor_code": "12",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "679818": {
+      "executor_name": "Салфетникова О.",
+      "executor_code": "12",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "880085": {
+      "executor_name": "Пахомова А.",
+      "executor_code": "07",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "728255": {
+      "executor_name": "Салова Е.В.",
+      "executor_code": "07",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "531591": {
+      "executor_name": "Забелин С.И.",
+      "executor_code": "11",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "886886": {
+      "executor_name": "Стрекалина Н.Н.",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "531595": {
+      "executor_name": "Храбрый И.А.",
+      "executor_code": "06",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "882280": {
+      "executor_name": "Шевцов И.Н.",
+      "executor_code": "05",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "507073": {
+      "executor_name": "Прокопьева Ю.В.",
+      "executor_code": "10",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "885039": {
+      "executor_name": "Карташова Ю.",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
+    "default": {
+      "executor_code": "00",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": false
+    }
+  },
+  "description": "Правила нумерации для каждого исполнителя. Ключ - user_id исполнителя из Kaiten. Формат: номер-код_исполнителя (например, 42-10)"
+}

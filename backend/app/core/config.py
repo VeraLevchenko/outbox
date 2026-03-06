@@ -18,12 +18,17 @@ class Settings(BaseSettings):
     KAITEN_COLUMN_OUTBOX_ID: int
     KAITEN_COLUMN_HEAD_REVIEW_ID: int
     KAITEN_COLUMN_REWORK_ID: int  # Колонка для возврата на доработку (для директора)
+    KAITEN_COLUMN_KIROV_71_ID: int  # Колонка "На подпись Кирова 71"
 
     # Kaiten Properties
     KAITEN_PROPERTY_INCOMING_NO: str
     KAITEN_PROPERTY_INCOMING_DATE: str
     KAITEN_PROPERTY_OUTGOING_NO: str
     KAITEN_PROPERTY_OUTGOING_DATE: str
+    KAITEN_PROPERTY_CONTENT: str = "id_475860"  # Краткое содержание
+
+    # Kaiten Tags
+    KAITEN_TAG_PRINT_ID: int  # Тег "распечатать"
 
     # Application
     APP_HOST: str = "0.0.0.0"

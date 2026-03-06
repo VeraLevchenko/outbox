@@ -356,15 +356,13 @@ PDF файл: {pdf_file_path.name}
         if not card:
             raise HTTPException(status_code=404, detail=f"Card {data.card_id} not found")
 
-        # Извлекаем краткое содержание (description или custom field)
-        content = card.get('description', '') or card.get('text', '') or ''
+        # Извлекаем краткое содержание из свойства карточки (properties)
+        from app.core.config import settings as app_settings
+        properties = card.get('properties', {})
+        content = properties.get(app_settings.KAITEN_PROPERTY_CONTENT, '') or ''
+        # Если в свойствах нет, пробуем description
         if not content:
-            # Пытаемся найти в custom fields
-            custom_fields = card.get('custom_fields', [])
-            for field in custom_fields:
-                if field.get('name') in ['Содержание', 'Краткое содержание', 'Content']:
-                    content = field.get('value', '')
-                    break
+            content = card.get('description', '') or ''
 
         # Формируем ссылку на карточку Kaiten
         kaiten_url = f"https://outbox.kaiten.ru/space/397084/card/{data.card_id}"

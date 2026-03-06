@@ -236,3 +236,27 @@
 ✅ **Постоянные паузы**
 
 **Если что-то непонятно — ЗАДАВАЙ ВОПРОСЫ ДО НАПИСАНИЯ КОДА.**
+
+
+### Для монтирования
+
+# 0. Важно для WSL: после перезагрузки компьютера, если шара не подхватится автоматически, выполни:
+sudo mount -a
+
+# 1. Создать точку монтирования (если нет папки)
+sudo mkdir -p /mnt/doc
+
+# 2. Смонтировать шару вручную
+sudo mount -t cifs //10.1.10.30/doc /mnt/doc -o username=lvs,password=123,iocharset=utf8,vers=3.0
+
+# 3. Проверить, что работает
+ls -la /mnt/doc/Входящие/
+
+# 4. Добавить в fstab для автомонтирования
+echo '//10.1.10.30/doc /mnt/doc cifs username=lvs,password=123,iocharset=utf8,vers=3.0,nofail,_netdev 0 0' | sudo tee -a /etc/fstab
+
+# 5. Если после перезагрузки отвалилось
+sudo mount -a
+
+
+# uvicorn app.main:app --reload
