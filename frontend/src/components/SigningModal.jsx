@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { outboxApi } from '../services/api';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, onSuccess }) => {
   const [certificates, setCertificates] = useState([]);
   const [selectedCert, setSelectedCert] = useState(null);
@@ -135,7 +136,7 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
     try {
       // 1. Получаем PDF
       const token = localStorage.getItem('token');
-      const pdfResponse = await fetch(`http://localhost:8000/api/outbox/download/${pdfFile}`, {
+      const pdfResponse = await fetch(`${API_BASE_URL}/api/outbox/download/${pdfFile}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -21,14 +21,14 @@ def create_users():
         # Создаем пользователей если их нет
         users_to_create = [
             {
-                'username': 'director',
-                'password': 'director123',
-                'role': 'director'
+                'username': 'talanova',
+                'password': 'talanova123',
+                'role': 'secretar'
             },
             {
-                'username': 'head',
-                'password': 'head123',
-                'role': 'head'
+                'username': 'lubimova',
+                'password': 'lubimova123',
+                'role': 'secretar'
             }
         ]
 
