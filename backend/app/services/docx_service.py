@@ -143,10 +143,27 @@ class DocxService:
 
         # Если изображения нет, создаем текстовую визуализацию в рамке
         # Используем данные из certificate_data или mock данные
-        cert_serial = certificate_data.get('serial', '5C6BE147FA657D807EF3A907DFB53553') if certificate_data else '5C6BE147FA657D807EF3A907DFB53553'
-        cert_owner = certificate_data.get('owner', 'Левченко Вера Сергеевна') if certificate_data else 'Левченко Вера Сергеевна'
-        cert_valid_from = certificate_data.get('valid_from', '16.07.2025') if certificate_data else '16.07.2025'
-        cert_valid_to = certificate_data.get('valid_to', '09.10.2026') if certificate_data else '09.10.2026'
+
+        USER_STAMP_DATA = {
+            'gabidulina': {
+                'serial': '11111111111111111',
+                'owner': 'Габидулина Рада Ришатовна',
+                'valid_from': '01.01.2026',
+                'valid_to': '31.12.2026',
+            },
+            'default': {
+                'serial': '5C6BE147FA657D807EF3A907DFB53553',
+                'owner': 'Левченко Вера Сергеевна',
+                'valid_from': '16.07.2025',
+                'valid_to': '09.10.2026',
+            }
+        }
+        username = certificate_data.get('username', 'default') if certificate_data else 'default'
+        stamp = USER_STAMP_DATA.get(username, USER_STAMP_DATA['default'])
+        cert_serial = certificate_data.get('serial', stamp['serial']) if certificate_data else stamp['serial']
+        cert_owner = certificate_data.get('owner', stamp['owner']) if certificate_data else stamp['owner']
+        cert_valid_from = certificate_data.get('valid_from', stamp['valid_from']) if certificate_data else stamp['valid_from']
+        cert_valid_to = certificate_data.get('valid_to', stamp['valid_to']) if certificate_data else stamp['valid_to']
 
         # Добавляем текстовую визуализацию
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER

@@ -168,7 +168,7 @@ async def prepare_registration(
             docx_bytes,
             formatted_number,
             outgoing_date,
-            certificate_data=None  # Сначала создаем без подписи
+            certificate_data={'username': current_user.get('username', 'default')}
         )
 
         # 11. Конвертируем DOCX в PDF
