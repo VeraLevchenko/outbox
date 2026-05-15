@@ -1,6 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const FileViewer = ({ fileUrl, fileName }) => {
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    setRetryKey(0);
+  }, [fileUrl]);
+
   if (!fileUrl) {
     return (
       <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
@@ -9,15 +15,11 @@ const FileViewer = ({ fileUrl, fileName }) => {
     );
   }
 
-  // Определяем тип файла: URL из Kaiten (публичный) или путь на сервере (локальный)
   const isPublicUrl = fileUrl.startsWith('http://') || fileUrl.startsWith('https://');
-
-  // Определяем расширение файла
   const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
 
-  // Для файлов из Kaiten (публичные URL) - используем Google Viewer
   if (isPublicUrl) {
-    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true&r=${retryKey}`;
 
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -26,12 +28,33 @@ const FileViewer = ({ fileUrl, fileName }) => {
             padding: '10px',
             background: '#f5f5f5',
             borderBottom: '1px solid #ddd',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
           }}>
-            {fileName}
+            <span>{fileName}</span>
+            <button
+              onClick={() => setRetryKey(k => k + 1)}
+              title="Перезагрузить документ"
+              style={{
+                padding: '4px 10px',
+                background: '#e5e7eb',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: '#374151',
+                fontWeight: '500',
+                flexShrink: 0
+              }}
+            >
+              ↺ Обновить
+            </button>
           </div>
         )}
         <iframe
+          key={retryKey}
           src={viewerUrl}
           style={{
             width: '100%',
@@ -45,7 +68,6 @@ const FileViewer = ({ fileUrl, fileName }) => {
     );
   }
 
-  // Для файлов с сервера (локальные пути) - используем endpoint для скачивания
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const downloadUrl = `${API_BASE_URL}/api/files/download?file_path=${encodeURIComponent(fileUrl)}`;
 
@@ -62,7 +84,6 @@ const FileViewer = ({ fileUrl, fileName }) => {
         </div>
       )}
 
-      {/* Просмотр PDF встроенным просмотрщиком браузера */}
       {fileExtension === 'pdf' ? (
         <iframe
           src={downloadUrl}
@@ -76,7 +97,6 @@ const FileViewer = ({ fileUrl, fileName }) => {
           title={fileName || 'PDF Viewer'}
         />
       ) : (
-        /* Для других форматов - предложение скачать */
         <div style={{
           padding: '40px',
           textAlign: 'center',

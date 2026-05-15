@@ -6,6 +6,11 @@ import Login from './components/Login';
 import { kaitenApi, authApi } from './services/api';
 import './App.css';
 
+const formatDue = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 function App() {
   const [mainTab, setMainTab] = useState('cards'); // 'cards' или 'journal'
   const [subTab, setSubTab] = useState('outgoing'); // 'incoming' или 'outgoing' - по умолчанию 'outgoing'
@@ -103,7 +108,8 @@ function App() {
               >
                 {cards.map((card) => (
                   <option key={card.id} value={card.id}>
-                    {card.properties?.id_228499 || card.id} - {card.title}
+                    {card.due_date ? `⚠ ${formatDue(card.due_date)} · ` : ''}
+                    {card.properties?.id_228499 || card.id} — {card.title}
                   </option>
                 ))}
               </select>

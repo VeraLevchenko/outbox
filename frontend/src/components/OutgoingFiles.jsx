@@ -22,7 +22,6 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
     if (cardId) {
       loadFiles();
       loadExecutor();
-      loadCardTitle();
     }
   }, [cardId]);
 
@@ -36,6 +35,7 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
       console.log('[OutgoingFiles] Main DOCX:', response.data.main_docx);
       setMainDocx(response.data.main_docx);
       setAttachments(response.data.attachments || []);
+      setCardTitle(response.data.card_title || '');
 
       // Автоматически выбираем главный DOCX
       if (response.data.main_docx) {
@@ -65,22 +65,6 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
       setExecutor(null);
     } finally {
       setExecutorLoading(false);
-    }
-  };
-
-  const loadCardTitle = async () => {
-    try {
-      console.log('[OutgoingFiles] Loading card title for card:', cardId);
-      // Используем существующий метод из filesApi для получения файлов
-      // В ответе обычно есть информация о карточке
-      const response = await filesApi.getOutgoingFiles(cardId);
-      // Если в ответе есть card_title, используем его
-      if (response.data.card_title) {
-        setCardTitle(response.data.card_title);
-      }
-    } catch (err) {
-      console.error('Ошибка загрузки названия карточки:', err);
-      setCardTitle('');
     }
   };
 

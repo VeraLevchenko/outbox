@@ -146,10 +146,10 @@ class DocxService:
 
         USER_STAMP_DATA = {
             'gabidulina': {
-                'serial': '11111111111111111',
+                'serial': '6DADC5852C426780DD13A83271D7D582',
                 'owner': 'Габидулина Рада Ришатовна',
-                'valid_from': '01.01.2026',
-                'valid_to': '31.12.2026',
+                'valid_from': '02.12.2025',
+                'valid_to': '25.02.2027',
             },
             'default': {
                 'serial': '5C6BE147FA657D807EF3A907DFB53553',

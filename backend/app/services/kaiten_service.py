@@ -25,6 +25,7 @@ class KaitenService:
                     "id": 1001,
                     "title": "Письмо в Минфин о налоговых льготах",
                     "column_name": "На подпись",
+                    "due_date": "2026-05-20T00:00:00+03:00",
                     "properties": {
                         "id_228499": "12345"  # incoming_no
                     },
@@ -104,6 +105,7 @@ class KaitenService:
                 if response.status_code == 200:
                     cards = response.json()
                     print(f"[Kaiten API] Found {len(cards)} cards in column '{column_name}' (ID: {column_id})")
+                    cards.sort(key=lambda c: (0, c["due_date"]) if c.get("due_date") else (1, ""))
                     return cards
                 else:
                     print(f"Kaiten API error: {response.status_code}, Response: {response.text}")
