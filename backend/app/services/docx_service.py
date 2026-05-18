@@ -42,30 +42,54 @@ class DocxService:
         Returns:
             True если найдены плейсхолдеры, False если нет
         """
+        import zipfile as _zipfile
+
+        placeholders = ('{{outgoing_no}}', '{{outgoing_date}}', '{{stamp}}')
+
+        # Первичная проверка — прямо по XML содержимому файла (надёжнее python-docx)
+        try:
+            with _zipfile.ZipFile(io.BytesIO(docx_bytes)) as z:
+                with z.open('word/document.xml') as f:
+                    xml_text = f.read().decode('utf-8', errors='ignore')
+            if any(ph in xml_text for ph in placeholders):
+                return True
+        except Exception as e:
+            print(f"Error checking placeholders via XML: {e}")
+
+        # Запасная проверка через python-docx с защитой от ошибок парсинга
         try:
             doc = Document(io.BytesIO(docx_bytes))
 
-            # Проверяем плейсхолдеры в параграфах
             for paragraph in doc.paragraphs:
-                if '{{outgoing_no}}' in paragraph.text or \
-                   '{{outgoing_date}}' in paragraph.text or \
-                   '{{stamp}}' in paragraph.text:
-                    return True
+                try:
+                    if any(ph in paragraph.text for ph in placeholders):
+                        return True
+                except Exception:
+                    continue
 
-            # Проверяем плейсхолдеры в таблицах
             for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for paragraph in cell.paragraphs:
-                            if '{{outgoing_no}}' in paragraph.text or \
-                               '{{outgoing_date}}' in paragraph.text or \
-                               '{{stamp}}' in paragraph.text:
-                                return True
+                try:
+                    for row in table.rows:
+                        try:
+                            for cell in row.cells:
+                                try:
+                                    for paragraph in cell.paragraphs:
+                                        try:
+                                            if any(ph in paragraph.text for ph in placeholders):
+                                                return True
+                                        except Exception:
+                                            continue
+                                except Exception:
+                                    continue
+                        except Exception:
+                            continue
+                except Exception:
+                    continue
 
-            return False
         except Exception as e:
-            print(f"Error checking placeholders: {e}")
-            return False
+            print(f"Error checking placeholders via docx: {e}")
+
+        return False
 
     def replace_placeholders(
         self,
@@ -105,18 +129,28 @@ class DocxService:
 
         # Заменяем плейсхолдеры в таблицах
         for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        if '{{outgoing_no}}' in paragraph.text:
-                            paragraph.text = paragraph.text.replace('{{outgoing_no}}', outgoing_no)
-                        if '{{outgoing_date}}' in paragraph.text:
-                            paragraph.text = paragraph.text.replace('{{outgoing_date}}', outgoing_date)
-
-                        # Заменяем {{stamp}} в таблицах
-                        if '{{stamp}}' in paragraph.text:
-                            paragraph.text = ''
-                            self._insert_stamp_visualization(paragraph, certificate_data)
+            try:
+                for row in table.rows:
+                    try:
+                        for cell in row.cells:
+                            try:
+                                for paragraph in cell.paragraphs:
+                                    try:
+                                        if '{{outgoing_no}}' in paragraph.text:
+                                            paragraph.text = paragraph.text.replace('{{outgoing_no}}', outgoing_no)
+                                        if '{{outgoing_date}}' in paragraph.text:
+                                            paragraph.text = paragraph.text.replace('{{outgoing_date}}', outgoing_date)
+                                        if '{{stamp}}' in paragraph.text:
+                                            paragraph.text = ''
+                                            self._insert_stamp_visualization(paragraph, certificate_data)
+                                    except Exception:
+                                        continue
+                            except Exception:
+                                continue
+                    except Exception:
+                        continue
+            except Exception:
+                continue
 
         # Сохраняем измененный документ в байты
         output = io.BytesIO()
