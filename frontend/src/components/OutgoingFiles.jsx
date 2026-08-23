@@ -17,8 +17,6 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnComment, setReturnComment] = useState('');
   const [cardTitle, setCardTitle] = useState('');
-  const [preview, setPreview] = useState(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (cardId) {
@@ -27,28 +25,6 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
     }
   }, [cardId, card]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadPreview = async () => {
-      const belongsToCard = card?.files?.some(file => (file.url || file.path) === selectedFile?.path);
-      if (!belongsToCard || !selectedFile?.name?.toLowerCase().endsWith('.pdf')) {
-        setPreview(null);
-        return;
-      }
-      try {
-        setPreviewLoading(true);
-        setPreview(null);
-        const response = await outboxApi.preparePreview(cardId, selectedFile.name, selectedFile.path);
-        if (!cancelled) setPreview(response.data);
-      } catch (err) {
-        if (!cancelled) setError('Ошибка подготовки предпросмотра: ' + (err.response?.data?.detail || err.message));
-      } finally {
-        if (!cancelled) setPreviewLoading(false);
-      }
-    };
-    loadPreview();
-    return () => { cancelled = true; };
-  }, [cardId, card, selectedFile]);
 
   const loadFiles = () => {
     setLoading(true);
@@ -98,9 +74,9 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
       return;
     }
 
-    // Проверяем, что выбранный файл - PDF
-    if (!selectedFile.name.toLowerCase().endsWith('.pdf')) {
-      alert(`Файл "${selectedFile.name}" не является PDF документом.\n\nРегистрировать можно только PDF файлы с маркерами ({{outgoing_no}}, {{outgoing_date}}, {{stamp}}).`);
+    // Проверяем, что выбранный файл - DOCX
+    if (!selectedFile.name.toLowerCase().endsWith('.docx')) {
+      alert(`Файл "${selectedFile.name}" не является DOCX документом.\n\nРегистрировать можно только DOCX файлы с полями для заполнения ({{outgoing_no}}, {{outgoing_date}}, {{stamp}}).`);
       return;
     }
 
@@ -111,7 +87,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
       // Поле "Кому" берется из названия карточки (title)
       // Исполнитель используется только для генерации номера
       // Подписывается файл, который открыт в просмотрщике
-      const response = await outboxApi.prepareRegistration(cardId, selectedFile.name, preview?.preview_id);
+      const response = await outboxApi.prepareRegistration(cardId, selectedFile.name);
       setRegistrationResult(response.data);
 
       // Открываем модальное окно для подписания
@@ -292,31 +268,31 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
           }}>
             <button
               onClick={handleRegisterAndSign}
-              disabled={registering || previewLoading}
+              disabled={registering}
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                background: (registering || previewLoading) ? '#9ca3af' : '#4b5563',
+                background: registering ? '#9ca3af' : '#4b5563',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
                 fontSize: '14px',
                 fontWeight: '600',
-                cursor: (registering || previewLoading) ? 'not-allowed' : 'pointer',
+                cursor: registering ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
-                if (!registering && !previewLoading) {
+                if (!registering) {
                   e.currentTarget.style.background = '#374151';
                 }
               }}
               onMouseLeave={(e) => {
-                if (!registering && !previewLoading) {
+                if (!registering) {
                   e.currentTarget.style.background = '#4b5563';
                 }
               }}
             >
-              {previewLoading ? 'Подготовка просмотра...' : registering ? 'Регистрация...' : 'Зарегистрировать и подписать'}
+              {registering ? 'Регистрация...' : 'Зарегистрировать и подписать'}
             </button>
 
             {/* Кнопка "Вернуть на доработку" */}
@@ -495,17 +471,10 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
 
       {/* Просмотр файла справа */}
       <div style={{ flex: 1 }}>
-        {previewLoading ? (
-          <div style={{ padding: '32px', textAlign: 'center', color: '#6b7280' }}>
-            Подготовка предпросмотра документа...
-          </div>
-        ) : (
-          <FileViewer
-            fileUrl={preview ? preview.preview_url : selectedFile?.path}
-            fileName={selectedFile?.name}
-            directPdf={Boolean(preview)}
-          />
-        )}
+        <FileViewer
+          fileUrl={selectedFile?.path}
+          fileName={selectedFile?.name}
+        />
       </div>
 
       {/* Модальное окно подписания */}
@@ -514,14 +483,13 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
           isOpen={showSigningModal}
           onClose={() => setShowSigningModal(false)}
           fileId={registrationResult.file_id}
-          pdfFile={registrationResult.file_id + '_' + registrationResult.formatted_number.replace(/[\/\-\\]/g, '_') + '_' + registrationResult.outgoing_date.replace(/\./g, '_') + '_' + selectedFile.name.replace(/\s/g, '_').replace(/[()[\]]/g, '').replace(/\.pdf$/i, '.pdf')}
+          pdfFile={registrationResult.docx_preview_url.split('/').pop()}
           cardId={cardId}
           outgoingNo={registrationResult.outgoing_no}
           formattedNumber={registrationResult.formatted_number}
           outgoingDate={registrationResult.outgoing_date}
           toWhom={cardTitle}
           executor={registrationResult.executor}
-          selectedFileName={selectedFile.name}
           onSuccess={async () => {
             setShowSigningModal(false);
 

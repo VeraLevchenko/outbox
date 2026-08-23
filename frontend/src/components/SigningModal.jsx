@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { outboxApi } from '../services/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, selectedFileName, onSuccess }) => {
+const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, onSuccess }) => {
   const [certificates, setCertificates] = useState([]);
   const [selectedCert, setSelectedCert] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -208,8 +208,7 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
         formatted_number: formattedNumber,
         outgoing_date: outgoingDate,
         to_whom: toWhom,
-        executor: executor,
-        selected_file_name: selectedFileName
+        executor: executor
       });
 
       setStatus('✅ Подпись успешно создана!');

@@ -3,21 +3,16 @@ from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 from datetime import date, datetime
 from pathlib import Path
-from urllib.parse import urlparse
 from pydantic import BaseModel
 import io
 import uuid
 import base64
 
 from app.models.database import SessionLocal
-from app.schemas.outbox_schemas import (
-    PreviewRequest,
-    PreviewResponse,
-    RegisterRequest,
-    RegisterResponse,
-)
+from app.schemas.outbox_schemas import RegisterRequest, RegisterResponse
 from app.services.kaiten_service import kaiten_service
 from app.services.file_service import file_service
+from app.services.docx_service import docx_service
 from app.services.config_service import config_service
 from app.services.pdf_service import pdf_service
 from app.services.cryptopro_service import cryptopro_service
@@ -38,28 +33,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-@router.post("/preview", response_model=PreviewResponse)
-async def prepare_preview(request: PreviewRequest, current_user: dict = Depends(get_current_user)):
-    """Скачать PDF по уже полученной ссылке Kaiten без повторного запроса карточки."""
-    if not request.selected_file_name.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Предпросмотр доступен только для PDF")
-
-    if file_service.use_mock:
-        pdf_bytes = pdf_service.convert_docx_to_pdf(_create_mock_docx())
-    else:
-        parsed_url = urlparse(request.file_url)
-        if parsed_url.scheme != "https" or parsed_url.hostname != "files.kaiten.ru":
-            raise HTTPException(status_code=400, detail="Недопустимый URL файла")
-        pdf_bytes = await file_service.download_file(request.file_url)
-
-    pdf_bytes = pdf_service.normalize_pdf_metadata(pdf_bytes, request.selected_file_name)
-    preview_id = str(uuid.uuid4())
-    TEMP_FILES_DIR.mkdir(exist_ok=True, parents=True)
-    (TEMP_FILES_DIR / f"{preview_id}.source.pdf").write_bytes(pdf_bytes)
-    (TEMP_FILES_DIR / f"{preview_id}.preview.pdf").write_bytes(pdf_bytes)
-    return PreviewResponse(preview_id=preview_id, preview_url=f"/api/outbox/download/{preview_id}.preview.pdf")
 
 
 @router.post("/prepare-registration", response_model=RegisterResponse)
@@ -142,56 +115,78 @@ async def prepare_registration(
             executor_code=executor_code
         )
 
-        # 4. Получаем текущую дату
+        # 4. Получаем текущую дату в формате ДД.ММ.ГГГГ
         today = date.today()
-        outgoing_date = today.strftime("%d.%m.%Y")
+        outgoing_date = docx_service.format_date(today)
 
-        # 5. Регистрировать можно только готовый PDF с маркерами
-        if not request.selected_file_name.lower().endswith(".pdf"):
+        # 5. Проверяем, что выбранный файл - DOCX
+        if not request.selected_file_name.lower().endswith('.docx'):
             raise HTTPException(
                 status_code=400,
-                detail=f"Выбранный файл '{request.selected_file_name}' не является PDF документом.",
+                detail=f"Выбранный файл '{request.selected_file_name}' не является DOCX документом. Регистрировать можно только DOCX файлы с полями для заполнения."
             )
 
         # 6. Находим выбранный файл в карточке
-        card_files = card.get("files", [])
-        selected_file = next(
-            (item for item in card_files if item.get("name") == request.selected_file_name),
-            None,
-        )
+        card_files = card.get('files', [])
+        selected_file = None
+        for file_info in card_files:
+            if file_info.get('name') == request.selected_file_name:
+                selected_file = file_info
+                break
+
         if not selected_file:
-            raise HTTPException(status_code=404, detail="Файл не найден в карточке")
-
-        # 7. Переиспользуем PDF, уже скачанный для предпросмотра
-        preview_source = (
-            TEMP_FILES_DIR / f"{request.preview_id}.source.pdf"
-            if request.preview_id else None
-        )
-        if preview_source and preview_source.exists():
-            source_pdf = preview_source.read_bytes()
-            print(f"[Outbox] Reusing preview source: {preview_source.name}")
-        elif file_service.use_mock:
-            source_pdf = pdf_service.convert_docx_to_pdf(_create_mock_docx())
-        else:
-            file_url = selected_file.get("url") or selected_file.get("path")
-            if not file_url:
-                raise HTTPException(status_code=404, detail="URL файла не найден")
-            source_pdf = await file_service.download_file(file_url)
-
-        # 8. Вставляем номер, дату и визуальную отметку ЭП прямо в PDF
-        try:
-            pdf_bytes = pdf_service.fill_pdf_placeholders(
-                source_pdf,
-                formatted_number,
-                outgoing_date,
-                current_user.get("username", "default"),
+            raise HTTPException(
+                status_code=404,
+                detail=f"Файл '{request.selected_file_name}' не найден в карточке"
             )
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Ошибка заполнения PDF: {exc}")
 
-        print(f"[Outbox] PDF ready for client-side signing: {len(pdf_bytes)} bytes")
+        # 8. Скачиваем DOCX (в mock режиме используем mock данные)
+        if file_service.use_mock:
+            # В mock режиме создаем простой DOCX с плейсхолдерами
+            print(f"[Mock] Creating mock DOCX with placeholders for file: {request.selected_file_name}")
+            docx_bytes = _create_mock_docx()
+        else:
+            # Скачиваем реальный файл из Kaiten
+            docx_url = selected_file.get('url') or selected_file.get('path')
+            if not docx_url:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"URL файла '{request.selected_file_name}' не найден"
+                )
+            docx_bytes = await docx_service.download_docx_from_url(docx_url)
+
+        # 9. Проверяем наличие плейсхолдеров
+        has_placeholders = docx_service.check_has_placeholders(docx_bytes)
+        if not has_placeholders:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Файл '{request.selected_file_name}' не содержит полей для заполнения ({{{{outgoing_no}}}}, {{{{outgoing_date}}}}, {{{{stamp}}}}). Регистрировать можно только шаблоны с полями."
+            )
+
+        # 10. Заменяем плейсхолдеры (пока без данных сертификата)
+        modified_docx = docx_service.replace_placeholders(
+            docx_bytes,
+            formatted_number,
+            outgoing_date,
+            certificate_data={'username': current_user.get('username', 'default')}
+        )
+
+        # 11. Конвертируем DOCX в PDF
+        print(f"[Outbox] Converting DOCX to PDF...")
+        try:
+            pdf_bytes = pdf_service.convert_docx_to_pdf(modified_docx)
+            print(f"[Outbox] PDF created: {len(pdf_bytes)} bytes")
+        except Exception as e:
+            print(f"[Outbox] PDF conversion error: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Ошибка конвертации в PDF: {str(e)}"
+            )
+
+        # 12. НЕ подписываем на сервере - подпись будет создана на клиенте через браузер
+        # Вместо этого просто используем DOCX без штампа ЭЦП
+        print(f"[Outbox] PDF ready for client-side signing")
+        modified_docx_with_stamp = modified_docx  # Используем DOCX без штампа
 
         # 14. Сохраняем файлы во временное хранилище
         # Убеждаемся, что директория существует
@@ -207,6 +202,11 @@ async def prepare_registration(
         # Заменяем пробелы, скобки и другие проблемные символы
         safe_base_name = base_name.replace(' ', '_').replace('(', '').replace(')', '').replace('[', '').replace(']', '')
 
+        # Сохраняем DOCX
+        docx_filename = f"{safe_number}_{safe_date}_{safe_base_name}.docx"
+        docx_file_path = TEMP_FILES_DIR / f"{file_id}_{docx_filename}"
+        with open(docx_file_path, 'wb') as f:
+            f.write(modified_docx_with_stamp)
 
         # Сохраняем PDF (без подписи - будет подписан на клиенте)
         pdf_filename = f"{safe_number}_{safe_date}_{safe_base_name}.pdf"
@@ -214,14 +214,10 @@ async def prepare_registration(
         with open(pdf_file_path, 'wb') as f:
             f.write(pdf_bytes)
 
-        # Исходник и PDF предпросмотра больше не нужны после создания итоговых файлов
-        if preview_source and preview_source.exists():
-            preview_source.unlink(missing_ok=True)
-            (TEMP_FILES_DIR / f"{request.preview_id}.preview.pdf").unlink(missing_ok=True)
-
         # Подпись (.sig) НЕ создаём здесь - будет создана на клиенте через браузер
 
         print(f"[Outbox] Files saved:")
+        print(f"  - DOCX: {docx_file_path}")
         print(f"  - PDF: {pdf_file_path}")
         print(f"  - SIG: будет создана на клиенте")
 
@@ -285,7 +281,6 @@ class ClientSignatureUpload(BaseModel):
     outgoing_date: str  # Дата в формате ДД.ММ.ГГГГ
     to_whom: str  # Кому (из названия карточки)
     executor: str  # Исполнитель
-    selected_file_name: str  # Основной PDF, чтобы исключить его из приложений
 
 
 @router.post("/upload-client-signature")
@@ -381,8 +376,11 @@ PDF файл: {pdf_file_path.name}
         attachments_bytes = None
         card_files = card.get('files', [])
 
-        # Исключаем выбранный основной PDF; остальные файлы считаются приложениями
-        attachment_files = [f for f in card_files if f.get('name') != data.selected_file_name]
+        # Фильтруем файлы: исключаем основной DOCX, который был зарегистрирован
+        # Это определяется по имени файла из registrationResult
+        # Но нам нужно знать, какой файл был выбран - это сложно определить здесь
+        # Поэтому возьмём все файлы, кроме .docx файлов (так как основной уже в PDF)
+        attachment_files = [f for f in card_files if not f.get('name', '').lower().endswith('.docx')]
 
         if attachment_files:
             print(f"[Outbox] Found {len(attachment_files)} attachments")
@@ -536,8 +534,7 @@ async def download_file(filename: str):
     return FileResponse(
         file_path,
         media_type=media_type,
-        filename=filename,
-        content_disposition_type="inline" if filename.endswith(".pdf") else "attachment"
+        filename=filename
     )
 
 
