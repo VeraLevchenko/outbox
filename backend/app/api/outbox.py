@@ -162,7 +162,7 @@ async def prepare_registration(
         # Проверяем подпись начальника именно для этой версии DOCX
         document_digest = hashlib.sha256(docx_bytes).hexdigest()
         approval_name = f"СОГЛАСОВАНО_{document_digest[:12]}_{Path(request.selected_file_name).name}.sig"
-        if not any(
+        if not request.skip_head_approval and not any(
             not item.get("deleted") and item.get("name") == approval_name
             for item in card_files
         ):

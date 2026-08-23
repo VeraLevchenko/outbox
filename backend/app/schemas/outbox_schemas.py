@@ -7,6 +7,7 @@ class RegisterRequest(BaseModel):
     """Запрос на регистрацию документа"""
     card_id: int
     selected_file_name: str  # Имя файла, выбранного в просмотрщике
+    skip_head_approval: bool = False
 
 
 class RegisterResponse(BaseModel):

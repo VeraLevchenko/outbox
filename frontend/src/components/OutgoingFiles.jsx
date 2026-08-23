@@ -21,6 +21,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   const [approvalLoading, setApprovalLoading] = useState(false);
   const [approvalVerification, setApprovalVerification] = useState(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showApprovalWarning, setShowApprovalWarning] = useState(false);
   const [returnComment, setReturnComment] = useState('');
   const [cardTitle, setCardTitle] = useState('');
 
@@ -133,7 +134,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
     setShowApprovalSigning(true);
   };
 
-  const handleRegisterAndSign = async () => {
+  const handleRegisterAndSign = async (skipApproval = false) => {
     if (!executor) {
       alert('Исполнитель не найден. Убедитесь, что в карточке Kaiten есть участник с типом 2.');
       return;
@@ -149,8 +150,8 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
       alert(`Файл "${selectedFile.name}" не является DOCX документом.\n\nРегистрировать можно только DOCX файлы с полями для заполнения ({{outgoing_no}}, {{outgoing_date}}, {{stamp}}).`);
       return;
     }
-    if (!approvalStatus?.signed || approvalVerification !== 'valid') {
-      alert(approvalStatus?.stale ? 'DOCX был изменён после согласования. Требуется повторная подпись начальника отдела.' : approvalStatus?.signed ? 'Не удалось криптографически проверить подпись начальника отдела.' : 'Сначала требуется подпись начальника отдела.');
+    if ((!approvalStatus?.signed || approvalVerification !== 'valid') && !skipApproval) {
+      setShowApprovalWarning(true);
       return;
     }
 
@@ -162,7 +163,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
       // Поле "Кому" берется из названия карточки (title)
       // Исполнитель используется только для генерации номера
       // Подписывается файл, который открыт в просмотрщике
-      const response = await outboxApi.prepareRegistration(cardId, selectedFile.name);
+      const response = await outboxApi.prepareRegistration(cardId, selectedFile.name, skipApproval);
       setRegistrationResult(response.data);
 
       // Открываем модальное окно для подписания
@@ -359,7 +360,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
             borderBottom: '2px solid #e5e7eb'
           }}>
             <button
-              onClick={handleRegisterAndSign}
+              onClick={() => handleRegisterAndSign(false)}
               disabled={registering}
               style={{
                 width: '100%',
@@ -623,6 +624,22 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
             alert('✅ Документ успешно подписан и запись добавлена в журнал!');
           }}
         />
+      )}
+
+      {showApprovalWarning && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
+          <div style={{ background: 'white', padding: '28px', borderRadius: '8px', width: '500px', maxWidth: '90%', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ marginTop: 0 }}>Предупреждение</h3>
+            <p style={{ color: '#374151', lineHeight: 1.5 }}>
+              {approvalStatus?.stale ? 'DOCX изменён после согласования. Подпись относится к другой версии документа.' : approvalStatus?.signed ? 'Не удалось криптографически проверить подпись начальника отдела.' : 'Подпись начальника отдела не найдена.'}
+            </p>
+            <p style={{ color: '#92400e', fontWeight: '600' }}>Можно продолжить регистрацию без этой подписи.</p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '22px' }}>
+              <button onClick={() => setShowApprovalWarning(false)} style={{ padding: '10px 18px', background: '#e5e7eb', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Закрыть</button>
+              <button onClick={() => { setShowApprovalWarning(false); handleRegisterAndSign(true); }} style={{ padding: '10px 18px', background: '#4b5563', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: '600' }}>Пропустить и продолжить</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Модальное окно возврата на доработку */}
