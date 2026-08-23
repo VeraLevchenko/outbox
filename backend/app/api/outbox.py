@@ -193,23 +193,18 @@ async def prepare_registration(
         TEMP_FILES_DIR.mkdir(exist_ok=True, parents=True)
 
         file_id = str(uuid.uuid4())
-        # Формируем имя файла: номер_дата_оригинальное_имя
+        # Формируем имя основного письма только из исходящего номера и даты
         safe_number = formatted_number.replace('/', '_').replace('\\', '_').replace('-', '_')
         safe_date = outgoing_date.replace('.', '_')
 
-        # Санитизируем оригинальное имя файла - убираем проблемные символы
-        base_name = request.selected_file_name.rsplit('.', 1)[0]  # без расширения
-        # Заменяем пробелы, скобки и другие проблемные символы
-        safe_base_name = base_name.replace(' ', '_').replace('(', '').replace(')', '').replace('[', '').replace(']', '')
-
         # Сохраняем DOCX
-        docx_filename = f"{safe_number}_{safe_date}_{safe_base_name}.docx"
+        docx_filename = f"{safe_number}_{safe_date}.docx"
         docx_file_path = TEMP_FILES_DIR / f"{file_id}_{docx_filename}"
         with open(docx_file_path, 'wb') as f:
             f.write(modified_docx_with_stamp)
 
         # Сохраняем PDF (без подписи - будет подписан на клиенте)
-        pdf_filename = f"{safe_number}_{safe_date}_{safe_base_name}.pdf"
+        pdf_filename = f"{safe_number}_{safe_date}.pdf"
         pdf_file_path = TEMP_FILES_DIR / f"{file_id}_{pdf_filename}"
         with open(pdf_file_path, 'wb') as f:
             f.write(pdf_bytes)
