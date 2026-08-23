@@ -4,6 +4,8 @@ import { authApi } from '../services/api';
 const Login = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [availableRoles, setAvailableRoles] = useState([]);
+  const [selectedRole, setSelectedRole] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -19,7 +21,7 @@ const Login = ({ onLoginSuccess }) => {
       setLoading(true);
       setError(null);
 
-      const response = await authApi.login(username, password);
+      const response = await authApi.login(username, password, selectedRole || null);
       const { access_token, user } = response.data;
 
       // Сохраняем токен и данные пользователя
@@ -32,7 +34,12 @@ const Login = ({ onLoginSuccess }) => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      if (err.response?.status === 401) {
+      if (err.response?.status === 409 && Array.isArray(err.response?.data?.detail?.roles)) {
+        setAvailableRoles(err.response.data.detail.roles);
+        setSelectedRole(err.response.data.detail.roles[0] || '');
+        setError('Выберите, в какой роли войти');
+      }
+      else if (err.response?.status === 401) {
         setError('Неверное имя пользователя или пароль');
       } else if (err.response?.status === 422) {
         setError('Неверный формат данных. Проверьте логин и пароль');
@@ -93,7 +100,7 @@ const Login = ({ onLoginSuccess }) => {
             <input
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => { setUsername(e.target.value); setAvailableRoles([]); setSelectedRole(''); }}
               disabled={loading}
               placeholder="Введите имя пользователя"
               style={{
@@ -120,7 +127,7 @@ const Login = ({ onLoginSuccess }) => {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setAvailableRoles([]); setSelectedRole(''); }}
               disabled={loading}
               placeholder="Введите пароль"
               style={{
@@ -133,6 +140,17 @@ const Login = ({ onLoginSuccess }) => {
               }}
             />
           </div>
+
+          {availableRoles.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontWeight: '500' }}>Роль</label>
+              <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '14px' }}>
+                {availableRoles.map(role => (
+                  <option key={role} value={role}>{role === 'acting_chairman' ? 'И.о. председателя' : 'Заместитель председателя'}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {error && (
             <div style={{

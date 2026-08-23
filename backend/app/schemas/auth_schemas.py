@@ -6,6 +6,7 @@ class LoginRequest(BaseModel):
     """Запрос на вход в систему"""
     username: str
     password: str
+    role: Optional[str] = None
 
     class Config:
         json_schema_extra = {

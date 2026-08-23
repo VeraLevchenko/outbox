@@ -28,9 +28,9 @@ async def get_cards(current_user: dict = Depends(get_current_user)) -> List[Dict
     try:
         # Роль берём только из проверенного токена, а не из параметра браузера
         role = current_user.get("role")
-        if role in {"director", "acting_director"}:
+        if role in {"director", "acting_chairman"}:
             column_name = "На подпись"
-        elif role == "head":
+        elif role in {"head", "deputy_chairman"}:
             column_name = "Проект готов. Согласование начальника отдела"
         else:
             raise HTTPException(status_code=400, detail="Invalid role")
@@ -73,12 +73,13 @@ async def move_card(
         role = current_user.get("role")
         allowed_targets = {
             "director": {"Отправка", "На доработку", "На подпись Кирова 71"},
-            "acting_director": {"Отправка", "На доработку", "На подпись Кирова 71"},
+            "acting_chairman": {"Отправка", "На доработку", "На подпись Кирова 71"},
             "head": {"В работе"},
+            "deputy_chairman": {"В работе"},
         }
         if request.target_column not in allowed_targets.get(role, set()):
             raise HTTPException(status_code=403, detail="Недопустимое перемещение для вашей роли")
-        if role == "head" and not await kaiten_service.is_responsible(card_id, current_user["username"]):
+        if role in {"head", "deputy_chairman"} and not await kaiten_service.is_responsible(card_id, current_user["username"]):
             raise HTTPException(status_code=403, detail="Карточка назначена другому начальнику отдела")
 
         success = await kaiten_service.move_card(

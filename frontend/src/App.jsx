@@ -30,7 +30,7 @@ function App() {
   const [cardId, setCardId] = useState(null);
   const [cards, setCards] = useState([]);
   const [user, setUser] = useState(null);
-  const isDirector = user?.role === 'director' || user?.role === 'acting_director';
+  const isDirector = user?.role === 'director' || user?.role === 'acting_chairman';
   const [loading, setLoading] = useState(true);
 
   // Проверяем наличие сохраненного пользователя при монтировании
@@ -136,7 +136,7 @@ function App() {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontWeight: '600', fontSize: '14px' }}>{user.full_name || user.username}</div>
             <div style={{ fontSize: '12px', opacity: '0.9' }}>
-              {user.role === 'acting_director' ? 'И.о. директора' : isDirector ? 'Директор' : 'Начальник отдела'}
+              {user.role === 'acting_chairman' ? 'И.о. председателя' : user.role === 'deputy_chairman' ? 'Заместитель председателя' : isDirector ? 'Директор' : 'Начальник отдела'}
             </div>
           </div>
           <button

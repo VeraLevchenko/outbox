@@ -59,7 +59,7 @@ async def prepare_registration(
         Данные регистрации с номером и датой
     """
     try:
-        if current_user.get("role") not in {"director", "acting_director"}:
+        if current_user.get("role") not in {"director", "acting_chairman"}:
             raise HTTPException(status_code=403, detail="Регистрировать исходящие письма может только директор")
 
         # 1. Получаем карточку для извлечения title
@@ -313,7 +313,7 @@ async def upload_client_signature(
         Результат сохранения подписи и создания записи в журнале
     """
     try:
-        if current_user.get("role") not in {"director", "acting_director"}:
+        if current_user.get("role") not in {"director", "acting_chairman"}:
             raise HTTPException(status_code=403, detail="Подписывать зарегистрированный PDF может только директор")
 
         # Декодируем подпись из Base64

@@ -42,8 +42,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    token_role = payload.get("role")
+    allowed_roles = auth_service.get_allowed_roles(user["role"])
+    if token_role not in allowed_roles:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Role is no longer allowed")
+    user["role"] = token_role
+    user["roles"] = allowed_roles
     return user
-
 
 @router.post("/login", response_model=TokenWithUserResponse)
 async def login(login_data: LoginRequest):
@@ -68,10 +73,20 @@ async def login(login_data: LoginRequest):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    allowed_roles = user.get("roles", [user["role"]])
+    if len(allowed_roles) > 1 and not login_data.role:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": "Выберите роль", "roles": allowed_roles},
+        )
+    selected_role = login_data.role or allowed_roles[0]
+    if selected_role not in allowed_roles:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Эта роль пользователю не разрешена")
+
     # Создаем токен
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth_service.create_access_token(
-        data={"sub": user['username'], "role": user['role']},
+        data={"sub": user['username'], "role": selected_role},
         expires_delta=access_token_expires
     )
 
@@ -82,7 +97,7 @@ async def login(login_data: LoginRequest):
             id=user['id'],
             username=user['username'],
             full_name=user['full_name'],
-            role=user['role']
+            role=selected_role
         )
     )
 

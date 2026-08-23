@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../services/api';
 
-const roleLabel = (role) => role === 'acting_director' ? 'И.о. директора' : role === 'director' ? 'Директор' : 'Начальник/заместитель';
+const roleLabel = (role) => {
+  const labels = { acting_chairman: 'И.о. председателя', deputy_chairman: 'Заместитель председателя', director: 'Председатель', head: 'Начальник/заместитель' };
+  return role.split(',').map(item => labels[item] || item).join(', ');
+};
 
 const Credentials = () => {
   const [users, setUsers] = useState([]);
@@ -33,7 +36,7 @@ const Credentials = () => {
   if (error) return <div style={{ padding: '32px', color: '#dc2626' }}>{error}</div>;
 
   return (
-    <div style={{ padding: '24px', overflow: 'auto' }}>
+    <div style={{ padding: '24px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
         <div>
           <h2 style={{ margin: 0 }}>Учётные записи сотрудников</h2>

@@ -8,6 +8,11 @@ from app.models.user import User
 
 
 class AuthService:
+    @staticmethod
+    
+    def get_allowed_roles(role_value: str):
+        return [role.strip() for role in role_value.split(",") if role.strip()]
+
     """Сервис для авторизации и работы с JWT токенами"""
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
@@ -45,6 +50,7 @@ class AuthService:
                 'id': user.id,
                 'username': user.username,
                 'role': user.role,
+                'roles': self.get_allowed_roles(user.role),
                 'full_name': user.username  # Можно расширить модель User с полем full_name
             }
         except Exception as e:
@@ -104,6 +110,7 @@ class AuthService:
                 'id': user.id,
                 'username': user.username,
                 'role': user.role,
+                'roles': self.get_allowed_roles(user.role),
                 'full_name': user.username
             }
         finally:

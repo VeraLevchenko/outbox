@@ -4,7 +4,8 @@ import FileViewer from './FileViewer';
 import SigningModal from './SigningModal';
 
 const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
-  const isDirector = userRole === 'director' || userRole === 'acting_director';
+  const isDirector = userRole === 'director' || userRole === 'acting_chairman';
+  const isHead = userRole === 'head' || userRole === 'deputy_chairman';
   const [mainDocx, setMainDocx] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -333,7 +334,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
           </div>
         )}
 
-        {userRole === 'head' && (
+        {isHead && (
           <div style={{ padding: '16px', background: '#ffffff', borderBottom: '2px solid #e5e7eb' }}>
             <button onClick={handleApproveAndForward} style={{ width: '100%', padding: '12px 16px', background: '#4b5563', color: 'white', border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
               Согласовать и направить на подпись

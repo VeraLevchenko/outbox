@@ -44,8 +44,8 @@ export const adminApi = {
 };
 
 export const authApi = {
-  login: (username, password) =>
-    api.post('/api/auth/login', { username, password }),
+  login: (username, password, role = null) =>
+    api.post('/api/auth/login', { username, password, role }),
   getCurrentUser: () => api.get('/api/auth/me'),
   logout: () => {
     localStorage.removeItem('token');

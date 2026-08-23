@@ -28,7 +28,7 @@ def _signature_name(file_name: str, digest: str) -> str:
 
 
 async def _get_document(card_id: int, file_name: str, current_user: dict):
-    if current_user.get("role") not in {"director", "acting_director", "head"}:
+    if current_user.get("role") not in {"director", "acting_chairman", "head", "deputy_chairman"}:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
     if not file_name.lower().endswith(".docx"):
         raise HTTPException(status_code=400, detail="Для согласования выберите DOCX")
@@ -36,9 +36,9 @@ async def _get_document(card_id: int, file_name: str, current_user: dict):
     card = await kaiten_service.get_card_by_id(card_id)
     if not card:
         raise HTTPException(status_code=404, detail="Карточка не найдена")
-    if current_user.get("role") == "head" and card.get("column_id") != settings.KAITEN_COLUMN_HEAD_REVIEW_ID:
+    if current_user.get("role") in {"head", "deputy_chairman"} and card.get("column_id") != settings.KAITEN_COLUMN_HEAD_REVIEW_ID:
         raise HTTPException(status_code=409, detail="Карточка уже не находится на согласовании начальника отдела")
-    if current_user.get("role") == "head" and not await kaiten_service.is_responsible(
+    if current_user.get("role") in {"head", "deputy_chairman"} and not await kaiten_service.is_responsible(
         card_id, current_user["username"], card.get("members")
     ):
         raise HTTPException(status_code=403, detail="Карточка назначена другому начальнику отдела")
@@ -99,7 +99,7 @@ async def sign_and_forward(
     data: ApprovalSignatureRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    if current_user.get("role") != "head":
+    if current_user.get("role") not in {"head", "deputy_chairman"}:
         raise HTTPException(status_code=403, detail="Согласовывать документ может только начальник отдела")
 
     card, _, content = await _get_document(data.card_id, data.file_name, current_user)
@@ -147,7 +147,7 @@ async def download_signature(
     file_name: str = Query(...),
     current_user: dict = Depends(get_current_user),
 ):
-    if current_user.get("role") not in {"director", "acting_director"}:
+    if current_user.get("role") not in {"director", "acting_chairman"}:
         raise HTTPException(status_code=403, detail="Проверять согласующую подпись может только директор")
     if not file_name.startswith("СОГЛАСОВАНО_") or not file_name.endswith(".docx.sig"):
         raise HTTPException(status_code=400, detail="Недопустимое имя подписи")
