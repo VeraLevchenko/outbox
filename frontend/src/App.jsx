@@ -11,6 +11,18 @@ const formatDue = (iso) => {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+const formatDueLabel = (iso) => {
+  if (!iso) return '';
+
+  const due = new Date(iso);
+  const today = new Date();
+  due.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  const marker = due < today ? '❗ ' : due.getTime() === today.getTime() ? '⚠ ' : '';
+  return `${marker}${formatDue(iso)} · `;
+};
+
 function App() {
   const [mainTab, setMainTab] = useState('cards'); // 'cards' или 'journal'
   const [subTab, setSubTab] = useState('outgoing'); // 'incoming' или 'outgoing' - по умолчанию 'outgoing'
@@ -108,7 +120,7 @@ function App() {
               >
                 {cards.map((card) => (
                   <option key={card.id} value={card.id}>
-                    {card.due_date ? `⚠ ${formatDue(card.due_date)} · ` : ''}
+                    {formatDueLabel(card.due_date)}
                     {card.properties?.id_228499 || card.id} — {card.title}
                   </option>
                 ))}
