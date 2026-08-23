@@ -82,10 +82,15 @@ export const journalApi = {
 
 // API методы для outbox (регистрация и подписание)
 export const outboxApi = {
-  prepareRegistration: (cardId, selectedFileName) =>
+  preparePreview: (cardId, selectedFileName) => api.post("/api/outbox/preview", {
+    card_id: cardId,
+    selected_file_name: selectedFileName
+  }),
+  prepareRegistration: (cardId, selectedFileName, previewId) =>
     api.post('/api/outbox/prepare-registration', {
       card_id: cardId,
-      selected_file_name: selectedFileName
+      selected_file_name: selectedFileName,
+      preview_id: previewId
     }),
   uploadClientSignature: (data) =>
     api.post('/api/outbox/upload-client-signature', data),

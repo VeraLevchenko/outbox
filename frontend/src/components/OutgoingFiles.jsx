@@ -17,6 +17,8 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnComment, setReturnComment] = useState('');
   const [cardTitle, setCardTitle] = useState('');
+  const [preview, setPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (cardId) {
@@ -24,6 +26,28 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
       loadExecutor();
     }
   }, [cardId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPreview = async () => {
+      if (!selectedFile?.name?.toLowerCase().endsWith('.docx')) {
+        setPreview(null);
+        return;
+      }
+      try {
+        setPreviewLoading(true);
+        setPreview(null);
+        const response = await outboxApi.preparePreview(cardId, selectedFile.name);
+        if (!cancelled) setPreview(response.data);
+      } catch (err) {
+        if (!cancelled) setError('Ошибка подготовки предпросмотра: ' + (err.response?.data?.detail || err.message));
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    };
+    loadPreview();
+    return () => { cancelled = true; };
+  }, [cardId, selectedFile]);
 
   const loadFiles = async () => {
     try {
@@ -92,7 +116,7 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
       // Поле "Кому" берется из названия карточки (title)
       // Исполнитель используется только для генерации номера
       // Подписывается файл, который открыт в просмотрщике
-      const response = await outboxApi.prepareRegistration(cardId, selectedFile.name);
+      const response = await outboxApi.prepareRegistration(cardId, selectedFile.name, preview?.preview_id);
       setRegistrationResult(response.data);
 
       // Открываем модальное окно для подписания
@@ -273,31 +297,31 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
           }}>
             <button
               onClick={handleRegisterAndSign}
-              disabled={registering}
+              disabled={registering || previewLoading}
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                background: registering ? '#9ca3af' : '#4b5563',
+                background: (registering || previewLoading) ? '#9ca3af' : '#4b5563',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
                 fontSize: '14px',
                 fontWeight: '600',
-                cursor: registering ? 'not-allowed' : 'pointer',
+                cursor: (registering || previewLoading) ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
-                if (!registering) {
+                if (!registering && !previewLoading) {
                   e.currentTarget.style.background = '#374151';
                 }
               }}
               onMouseLeave={(e) => {
-                if (!registering) {
+                if (!registering && !previewLoading) {
                   e.currentTarget.style.background = '#4b5563';
                 }
               }}
             >
-              {registering ? 'Регистрация...' : 'Зарегистрировать и подписать'}
+              {previewLoading ? 'Подготовка просмотра...' : registering ? 'Регистрация...' : 'Зарегистрировать и подписать'}
             </button>
 
             {/* Кнопка "Вернуть на доработку" */}
@@ -476,10 +500,17 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
 
       {/* Просмотр файла справа */}
       <div style={{ flex: 1 }}>
-        <FileViewer
-          fileUrl={selectedFile?.path}
-          fileName={selectedFile?.name}
-        />
+        {previewLoading ? (
+          <div style={{ padding: '32px', textAlign: 'center', color: '#6b7280' }}>
+            Подготовка предпросмотра документа...
+          </div>
+        ) : (
+          <FileViewer
+            fileUrl={preview ? preview.preview_url : selectedFile?.path}
+            fileName={preview ? selectedFile?.name.replace(/\.docx$/i, '.pdf') : selectedFile?.name}
+            directPdf={Boolean(preview)}
+          />
+        )}
       </div>
 
       {/* Модальное окно подписания */}

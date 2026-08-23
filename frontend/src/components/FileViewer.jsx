@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const FileViewer = ({ fileUrl, fileName }) => {
+const FileViewer = ({ fileUrl, fileName, directPdf = false }) => {
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
@@ -17,6 +17,10 @@ const FileViewer = ({ fileUrl, fileName }) => {
 
   const isPublicUrl = fileUrl.startsWith('http://') || fileUrl.startsWith('https://');
   const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
+
+  if (directPdf) {
+    return <iframe src={fileUrl} type="application/pdf" style={{ width: '100%', height: '100%', border: 'none' }} title={fileName || 'PDF preview'} />;
+  }
 
   if (isPublicUrl) {
     const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true&r=${retryKey}`;

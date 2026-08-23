@@ -9,7 +9,12 @@ import uuid
 import base64
 
 from app.models.database import SessionLocal
-from app.schemas.outbox_schemas import RegisterRequest, RegisterResponse
+from app.schemas.outbox_schemas import (
+    PreviewRequest,
+    PreviewResponse,
+    RegisterRequest,
+    RegisterResponse,
+)
 from app.services.kaiten_service import kaiten_service
 from app.services.file_service import file_service
 from app.services.docx_service import docx_service
@@ -33,6 +38,40 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+@router.post("/preview", response_model=PreviewResponse)
+async def prepare_preview(request: PreviewRequest, current_user: dict = Depends(get_current_user)):
+    """Скачать DOCX один раз и подготовить временный PDF для просмотра."""
+    if not request.selected_file_name.lower().endswith(".docx"):
+        raise HTTPException(status_code=400, detail="Предпросмотр доступен только для DOCX")
+
+    card = await kaiten_service.get_card_by_id(request.card_id)
+    if not card:
+        raise HTTPException(status_code=404, detail=f"Card {request.card_id} not found")
+
+    selected_file = next((item for item in card.get("files", []) if item.get("name") == request.selected_file_name and not item.get("deleted", False)), None)
+    if not selected_file:
+        raise HTTPException(status_code=404, detail="Файл не найден в карточке")
+
+    if file_service.use_mock:
+        docx_bytes = _create_mock_docx()
+    else:
+        docx_url = selected_file.get("url") or selected_file.get("path")
+        if not docx_url:
+            raise HTTPException(status_code=404, detail="URL файла не найден")
+        docx_bytes = await docx_service.download_docx_from_url(docx_url)
+
+    try:
+        pdf_bytes = pdf_service.convert_docx_to_pdf(docx_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Ошибка подготовки предпросмотра: {exc}")
+
+    preview_id = str(uuid.uuid4())
+    TEMP_FILES_DIR.mkdir(exist_ok=True, parents=True)
+    (TEMP_FILES_DIR / f"{preview_id}.source.docx").write_bytes(docx_bytes)
+    (TEMP_FILES_DIR / f"{preview_id}.preview.pdf").write_bytes(pdf_bytes)
+    return PreviewResponse(preview_id=preview_id, preview_url=f"/api/outbox/download/{preview_id}.preview.pdf")
 
 
 @router.post("/prepare-registration", response_model=RegisterResponse)
@@ -140,8 +179,12 @@ async def prepare_registration(
                 detail=f"Файл '{request.selected_file_name}' не найден в карточке"
             )
 
-        # 8. Скачиваем DOCX (в mock режиме используем mock данные)
-        if file_service.use_mock:
+        # 8. Переиспользуем DOCX, уже скачанный для предпросмотра
+        preview_source = TEMP_FILES_DIR / f"{request.preview_id}.source.docx" if request.preview_id else None
+        if preview_source and preview_source.exists():
+            docx_bytes = preview_source.read_bytes()
+            print(f"[Outbox] Reusing preview source: {preview_source.name}")
+        elif file_service.use_mock:
             # В mock режиме создаем простой DOCX с плейсхолдерами
             print(f"[Mock] Creating mock DOCX with placeholders for file: {request.selected_file_name}")
             docx_bytes = _create_mock_docx()
@@ -213,6 +256,11 @@ async def prepare_registration(
         pdf_file_path = TEMP_FILES_DIR / f"{file_id}_{pdf_filename}"
         with open(pdf_file_path, 'wb') as f:
             f.write(pdf_bytes)
+
+        # Исходник и PDF предпросмотра больше не нужны после создания итоговых файлов
+        if preview_source and preview_source.exists():
+            preview_source.unlink(missing_ok=True)
+            (TEMP_FILES_DIR / f"{request.preview_id}.preview.pdf").unlink(missing_ok=True)
 
         # Подпись (.sig) НЕ создаём здесь - будет создана на клиенте через браузер
 
@@ -534,7 +582,8 @@ async def download_file(filename: str):
     return FileResponse(
         file_path,
         media_type=media_type,
-        filename=filename
+        filename=filename,
+        content_disposition_type="inline" if filename.endswith(".pdf") else "attachment"
     )
 
 
