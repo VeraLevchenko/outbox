@@ -9,7 +9,7 @@ from app.models.user import User
 
 class AuthService:
     @staticmethod
-    
+
     def get_allowed_roles(role_value: str):
         return [role.strip() for role in role_value.split(",") if role.strip()]
 
