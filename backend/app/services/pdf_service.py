@@ -1,9 +1,11 @@
+import io
 import subprocess
 import tempfile
 import shutil
 import os
 from pathlib import Path
 from typing import Optional
+import pymupdf
 
 
 class PdfService:
@@ -150,6 +152,71 @@ class PdfService:
                 print(f"[PdfService] Cleaned up temp directory: {temp_dir}")
             except Exception as e:
                 print(f"[PdfService] Warning: Failed to clean up temp directory: {e}")
+
+
+    def fill_pdf_placeholders(self, pdf_bytes: bytes, outgoing_no: str, outgoing_date: str, username: str = "default") -> bytes:
+        """Заменить текстовые маркеры в готовом PDF и добавить визуальную отметку ЭП."""
+        stamp_data = {
+            "gabidulina": ("6DADC5852C426780DD13A83271D7D582", "Габидулина Рада Ришатовна", "02.12.2025", "25.02.2027"),
+            "mezentseva": ("F3E16AEEEF42503B17051E597BDF345EFB901DE1", "Мезенцева Дарья Витальевна", "06.08.2025", "30.10.2026"),
+            "default": ("5C6BE147FA657D807EF3A907DFB53553", "Левченко Вера Сергеевна", "16.07.2025", "09.10.2026"),
+        }
+        serial, owner, valid_from, valid_to = stamp_data.get(username, stamp_data["default"])
+        values = {"{{outgoing_no}}": outgoing_no, "{{outgoing_date}}": outgoing_date}
+        document = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+        found = {}
+
+        for marker in (*values.keys(), "{{stamp}}"):
+            matches = []
+            for page_number, page in enumerate(document):
+                matches.extend((page_number, rect) for rect in page.search_for(marker))
+            if len(matches) == 0 or len(matches) > 1:
+                document.close()
+                raise ValueError(f"Маркер {marker} должен встречаться в PDF ровно один раз; найдено: {len(matches)}")
+            found[marker] = matches[0]
+
+        for marker, (page_number, rect) in found.items():
+            page = document[page_number]
+            page.add_redact_annot(rect + (-1, -1, 1, 1), fill=(1, 1, 1))
+        for page in document:
+            page.apply_redactions()
+
+        font_file = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        for marker, value in values.items():
+            page_number, rect = found[marker]
+            page = document[page_number]
+            page.insert_font(fontname="OutboxFont", fontfile=font_file)
+            page.insert_text((rect.x0, rect.y1 - 1), value, fontname="OutboxFont", fontsize=9, color=(0, 0, 0))
+
+        page_number, marker_rect = found["{{stamp}}"]
+        page = document[page_number]
+        page.insert_font(fontname="OutboxFont", fontfile=font_file)
+        stamp_rect = pymupdf.Rect(
+            max(36, marker_rect.x0 - 95),
+            max(36, marker_rect.y0 - 5),
+            min(page.rect.width - 36, marker_rect.x1 + 100),
+            min(page.rect.height - 36, marker_rect.y0 + 72),
+        )
+        page.draw_rect(stamp_rect, color=(0.1, 0.35, 0.65), width=0.8, overlay=True)
+        stamp_text = (
+            "ДОКУМЕНТ ПОДПИСАН ЭЛЕКТРОННОЙ ПОДПИСЬЮ\n"
+            f"Сертификат {serial}\n"
+            f"Владелец {owner}\n"
+            f"Действителен с {valid_from} по {valid_to}"
+        )
+        result = page.insert_textbox(
+            stamp_rect + (4, 4, -4, -4), stamp_text,
+            fontname="OutboxFont", fontsize=6.5, color=(0.1, 0.25, 0.5),
+            align=pymupdf.TEXT_ALIGN_CENTER, overlay=True,
+        )
+        if result < 0:
+            document.close()
+            raise ValueError("Отметка электронной подписи не помещается в зарезервированную область")
+
+        output = io.BytesIO()
+        document.save(output, garbage=4, deflate=True)
+        document.close()
+        return output.getvalue()
 
 
 # Singleton instance

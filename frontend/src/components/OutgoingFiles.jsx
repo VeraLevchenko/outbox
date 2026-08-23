@@ -30,7 +30,7 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
   useEffect(() => {
     let cancelled = false;
     const loadPreview = async () => {
-      if (!selectedFile?.name?.toLowerCase().endsWith('.docx')) {
+      if (!selectedFile?.name?.toLowerCase().endsWith('.pdf')) {
         setPreview(null);
         return;
       }
@@ -56,12 +56,12 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
       console.log('[OutgoingFiles] Loading files for card:', cardId);
       const response = await filesApi.getOutgoingFiles(cardId);
       console.log('[OutgoingFiles] Files loaded:', response.data);
-      console.log('[OutgoingFiles] Main DOCX:', response.data.main_docx);
+      console.log('[OutgoingFiles] Main PDF:', response.data.main_docx);
       setMainDocx(response.data.main_docx);
       setAttachments(response.data.attachments || []);
       setCardTitle(response.data.card_title || '');
 
-      // Автоматически выбираем главный DOCX
+      // Автоматически выбираем главный PDF
       if (response.data.main_docx) {
         setSelectedFile(response.data.main_docx);
       } else if (response.data.attachments && response.data.attachments.length > 0) {
@@ -103,9 +103,9 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
       return;
     }
 
-    // Проверяем, что выбранный файл - DOCX
-    if (!selectedFile.name.toLowerCase().endsWith('.docx')) {
-      alert(`Файл "${selectedFile.name}" не является DOCX документом.\n\nРегистрировать можно только DOCX файлы с полями для заполнения ({{outgoing_no}}, {{outgoing_date}}, {{stamp}}).`);
+    // Проверяем, что выбранный файл - PDF
+    if (!selectedFile.name.toLowerCase().endsWith('.pdf')) {
+      alert(`Файл "${selectedFile.name}" не является PDF документом.\n\nРегистрировать можно только PDF файлы с маркерами ({{outgoing_no}}, {{outgoing_date}}, {{stamp}}).`);
       return;
     }
 
@@ -507,7 +507,7 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
         ) : (
           <FileViewer
             fileUrl={preview ? preview.preview_url : selectedFile?.path}
-            fileName={preview ? selectedFile?.name.replace(/\.docx$/i, '.pdf') : selectedFile?.name}
+            fileName={selectedFile?.name}
             directPdf={Boolean(preview)}
           />
         )}
@@ -519,13 +519,14 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
           isOpen={showSigningModal}
           onClose={() => setShowSigningModal(false)}
           fileId={registrationResult.file_id}
-          pdfFile={registrationResult.file_id + '_' + registrationResult.formatted_number.replace(/[\/\-\\]/g, '_') + '_' + registrationResult.outgoing_date.replace(/\./g, '_') + '_' + selectedFile.name.replace(/\s/g, '_').replace(/[()[\]]/g, '').replace('.docx', '.pdf')}
+          pdfFile={registrationResult.file_id + '_' + registrationResult.formatted_number.replace(/[\/\-\\]/g, '_') + '_' + registrationResult.outgoing_date.replace(/\./g, '_') + '_' + selectedFile.name.replace(/\s/g, '_').replace(/[()[\]]/g, '').replace(/\.pdf$/i, '.pdf')}
           cardId={cardId}
           outgoingNo={registrationResult.outgoing_no}
           formattedNumber={registrationResult.formatted_number}
           outgoingDate={registrationResult.outgoing_date}
           toWhom={cardTitle}
           executor={registrationResult.executor}
+          selectedFileName={selectedFile.name}
           onSuccess={async () => {
             setShowSigningModal(false);
 

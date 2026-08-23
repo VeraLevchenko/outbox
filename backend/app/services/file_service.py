@@ -45,10 +45,10 @@ class FileService:
         if card_id == 1001:
             return {
                 "main_docx": {
-                    "name": "исх_письмо_минфин.docx",
-                    "path": "/kaiten/files/исх_письмо_минфин.docx",
+                    "name": "исх_письмо_минфин.pdf",
+                    "path": "/kaiten/files/исх_письмо_минфин.pdf",
                     "size": 89600,
-                    "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "type": "application/pdf",
                     "is_main": True
                 },
                 "attachments": [
@@ -64,10 +64,10 @@ class FileService:
         elif card_id == 1002:
             return {
                 "main_docx": {
-                    "name": "исх_договор.docx",
-                    "path": "/kaiten/files/исх_договор.docx",
+                    "name": "исх_договор.pdf",
+                    "path": "/kaiten/files/исх_договор.pdf",
                     "size": 125440,
-                    "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "type": "application/pdf",
                     "is_main": True
                 },
                 "attachments": []
@@ -75,10 +75,10 @@ class FileService:
         else:
             return {
                 "main_docx": {
-                    "name": "исх_отчет.docx",
-                    "path": "/kaiten/files/исх_отчет.docx",
+                    "name": "исх_отчет.pdf",
+                    "path": "/kaiten/files/исх_отчет.pdf",
                     "size": 67890,
-                    "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "type": "application/pdf",
                     "is_main": True
                 },
                 "attachments": []
@@ -131,7 +131,7 @@ class FileService:
             card_files: Список файлов из карточки Kaiten
 
         Returns:
-            Словарь с главным DOCX и приложениями
+            Словарь с главным PDF и приложениями
         """
         if self.use_mock:
             print(f"[Mock] Returning mock outgoing files for card {card_id}")
@@ -144,13 +144,13 @@ class FileService:
         for file_info in card_files:
             file_name = file_info.get("name", "")
 
-            # Главный DOCX начинается с "исх_"
-            if file_name.startswith("исх_") and file_name.endswith(".docx"):
+            # Главный PDF начинается с "исх_"
+            if file_name.startswith("исх_") and file_name.lower().endswith(".pdf"):
                 main_docx = {
                     "name": file_name,
                     "path": file_info.get("url", ""),
                     "size": file_info.get("size") or 0,  # Если size=None, используем 0
-                    "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "type": "application/pdf",
                     "is_main": True
                 }
             else:
