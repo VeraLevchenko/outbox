@@ -37,7 +37,7 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
       try {
         setPreviewLoading(true);
         setPreview(null);
-        const response = await outboxApi.preparePreview(cardId, selectedFile.name);
+        const response = await outboxApi.preparePreview(cardId, selectedFile.name, selectedFile.path);
         if (!cancelled) setPreview(response.data);
       } catch (err) {
         if (!cancelled) setError('Ошибка подготовки предпросмотра: ' + (err.response?.data?.detail || err.message));

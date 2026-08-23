@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 from datetime import date, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 from pydantic import BaseModel
 import io
 import uuid
@@ -41,28 +42,19 @@ def get_db():
 
 @router.post("/preview", response_model=PreviewResponse)
 async def prepare_preview(request: PreviewRequest, current_user: dict = Depends(get_current_user)):
-    """Скачать готовый PDF один раз и вернуть локальный URL для быстрого просмотра."""
+    """Скачать PDF по уже полученной ссылке Kaiten без повторного запроса карточки."""
     if not request.selected_file_name.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Предпросмотр доступен только для PDF")
-
-    card = await kaiten_service.get_card_by_id(request.card_id)
-    if not card:
-        raise HTTPException(status_code=404, detail=f"Card {request.card_id} not found")
-    selected_file = next(
-        (item for item in card.get("files", []) if item.get("name") == request.selected_file_name and not item.get("deleted", False)),
-        None,
-    )
-    if not selected_file:
-        raise HTTPException(status_code=404, detail="Файл не найден в карточке")
 
     if file_service.use_mock:
         pdf_bytes = pdf_service.convert_docx_to_pdf(_create_mock_docx())
     else:
-        file_url = selected_file.get("url") or selected_file.get("path")
-        if not file_url:
-            raise HTTPException(status_code=404, detail="URL файла не найден")
-        pdf_bytes = await file_service.download_file(file_url)
+        parsed_url = urlparse(request.file_url)
+        if parsed_url.scheme != "https" or parsed_url.hostname != "files.kaiten.ru":
+            raise HTTPException(status_code=400, detail="Недопустимый URL файла")
+        pdf_bytes = await file_service.download_file(request.file_url)
 
+    pdf_bytes = pdf_service.normalize_pdf_metadata(pdf_bytes, request.selected_file_name)
     preview_id = str(uuid.uuid4())
     TEMP_FILES_DIR.mkdir(exist_ok=True, parents=True)
     (TEMP_FILES_DIR / f"{preview_id}.source.pdf").write_bytes(pdf_bytes)

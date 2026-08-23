@@ -154,6 +154,15 @@ class PdfService:
                 print(f"[PdfService] Warning: Failed to clean up temp directory: {e}")
 
 
+    def normalize_pdf_metadata(self, pdf_bytes: bytes, title: str) -> bytes:
+        """Установить читаемый заголовок PDF для встроенного просмотрщика браузера."""
+        document = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+        document.set_metadata({"title": title, "author": "", "subject": "", "keywords": "", "creator": "Outbox", "producer": "Outbox"})
+        output = io.BytesIO()
+        document.save(output, garbage=4, deflate=True)
+        document.close()
+        return output.getvalue()
+
     def fill_pdf_placeholders(self, pdf_bytes: bytes, outgoing_no: str, outgoing_date: str, username: str = "default") -> bytes:
         """Заменить текстовые маркеры в готовом PDF и добавить визуальную отметку ЭП."""
         stamp_data = {

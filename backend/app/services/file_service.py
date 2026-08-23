@@ -137,35 +137,18 @@ class FileService:
             print(f"[Mock] Returning mock outgoing files for card {card_id}")
             return self._get_mock_outgoing_files(card_id)
 
-        # Реальная логика работы с файлами Kaiten
-        main_docx = None
-        attachments = []
-
-        for file_info in card_files:
-            file_name = file_info.get("name", "")
-
-            # Главный PDF начинается с "исх_"
-            if file_name.startswith("исх_") and file_name.lower().endswith(".pdf"):
-                main_docx = {
-                    "name": file_name,
-                    "path": file_info.get("url", ""),
-                    "size": file_info.get("size") or 0,  # Если size=None, используем 0
-                    "type": "application/pdf",
-                    "is_main": True
-                }
-            else:
-                attachments.append({
-                    "name": file_name,
-                    "path": file_info.get("url", ""),
-                    "size": file_info.get("size") or 0,  # Если size=None, используем 0
-                    "type": self._get_mime_type(Path(file_name).suffix),
-                    "is_main": False
-                })
-
-        return {
-            "main_docx": main_docx,
-            "attachments": attachments
-        }
+        # Все файлы отображаются единым списком: Kaiten не различает письмо и приложения
+        attachments = [
+            {
+                "name": file_info.get("name", ""),
+                "path": file_info.get("url", ""),
+                "size": file_info.get("size") or 0,
+                "type": self._get_mime_type(Path(file_info.get("name", "")).suffix),
+                "is_main": False,
+            }
+            for file_info in card_files
+        ]
+        return {"main_docx": None, "attachments": attachments}
 
     async def download_file(self, file_url: str) -> bytes:
         """

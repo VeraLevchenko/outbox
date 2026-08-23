@@ -15,6 +15,7 @@ class PreviewRequest(BaseModel):
     """Запрос на подготовку временного PDF-предпросмотра"""
     card_id: int
     selected_file_name: str
+    file_url: str
 
 
 class PreviewResponse(BaseModel):
