@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 import asyncio
 from pathlib import Path
 from app.core.config import settings
-from app.api import kaiten, files, auth, journal, outbox, approval
+from app.api import kaiten, files, auth, journal, outbox, approval, admin
 from app.services.kaiten_service import kaiten_service
 from app.services.file_service import file_service
 
@@ -70,6 +70,7 @@ app.include_router(files.router)
 app.include_router(journal.router)
 app.include_router(outbox.router)
 app.include_router(approval.router)
+app.include_router(admin.router)
 
 # Монтируем статические файлы
 STATIC_DIR = Path(__file__).parent.parent / "static"

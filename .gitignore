@@ -43,3 +43,6 @@ dist/
 build/
 
 backend/temp_files/
+
+backend/user_credentials.json
+backend/backups/

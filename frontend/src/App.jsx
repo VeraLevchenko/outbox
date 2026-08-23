@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import IncomingFiles from './components/IncomingFiles';
 import OutgoingFiles from './components/OutgoingFiles';
 import Journal from './components/Journal';
+import Credentials from './components/Credentials';
 import Login from './components/Login';
 import { kaitenApi, authApi } from './services/api';
 import './App.css';
@@ -29,6 +30,7 @@ function App() {
   const [cardId, setCardId] = useState(null);
   const [cards, setCards] = useState([]);
   const [user, setUser] = useState(null);
+  const isDirector = user?.role === 'director' || user?.role === 'acting_director';
   const [loading, setLoading] = useState(true);
 
   // Проверяем наличие сохраненного пользователя при монтировании
@@ -134,7 +136,7 @@ function App() {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontWeight: '600', fontSize: '14px' }}>{user.full_name || user.username}</div>
             <div style={{ fontSize: '12px', opacity: '0.9' }}>
-              {user.role === 'director' ? 'Директор' : 'Начальник отдела'}
+              {user.role === 'acting_director' ? 'И.о. директора' : isDirector ? 'Директор' : 'Начальник отдела'}
             </div>
           </div>
           <button
@@ -170,13 +172,18 @@ function App() {
         >
           Карточки
         </button>
-        {user.role === 'director' && (
+        {isDirector && (
         <button
           className={`tab ${mainTab === 'journal' ? 'active' : ''}`}
           onClick={() => setMainTab('journal')}
         >
           Журнал
         </button>
+        )}
+        {user.username === 'levchenko' && (
+          <button className={`tab ${mainTab === 'credentials' ? 'active' : ''}`} onClick={() => setMainTab('credentials')}>
+            Учётные записи
+          </button>
         )}
       </div>
 
@@ -202,7 +209,8 @@ function App() {
       <div className="content">
         {mainTab === 'cards' && subTab === 'incoming' && <IncomingFiles cardId={cardId} />}
         {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} card={cards.find(card => card.id === cardId)} onCardsUpdate={loadCards} userRole={user?.role} />}
-        {user.role === 'director' && mainTab === 'journal' && <Journal />}
+        {user.username === 'levchenko' && mainTab === 'credentials' && <Credentials />}
+        {isDirector && mainTab === 'journal' && <Journal />}
       </div>
     </div>
   );

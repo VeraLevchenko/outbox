@@ -28,7 +28,7 @@ async def get_cards(current_user: dict = Depends(get_current_user)) -> List[Dict
     try:
         # Роль берём только из проверенного токена, а не из параметра браузера
         role = current_user.get("role")
-        if role == "director":
+        if role in {"director", "acting_director"}:
             column_name = "На подпись"
         elif role == "head":
             column_name = "Проект готов. Согласование начальника отдела"
@@ -73,6 +73,7 @@ async def move_card(
         role = current_user.get("role")
         allowed_targets = {
             "director": {"Отправка", "На доработку", "На подпись Кирова 71"},
+            "acting_director": {"Отправка", "На доработку", "На подпись Кирова 71"},
             "head": {"В работе"},
         }
         if request.target_column not in allowed_targets.get(role, set()):

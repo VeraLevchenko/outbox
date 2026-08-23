@@ -28,7 +28,7 @@ def _signature_name(file_name: str, digest: str) -> str:
 
 
 async def _get_document(card_id: int, file_name: str, current_user: dict):
-    if current_user.get("role") not in {"director", "head"}:
+    if current_user.get("role") not in {"director", "acting_director", "head"}:
         raise HTTPException(status_code=403, detail="Недостаточно прав")
     if not file_name.lower().endswith(".docx"):
         raise HTTPException(status_code=400, detail="Для согласования выберите DOCX")
@@ -147,7 +147,7 @@ async def download_signature(
     file_name: str = Query(...),
     current_user: dict = Depends(get_current_user),
 ):
-    if current_user.get("role") != "director":
+    if current_user.get("role") not in {"director", "acting_director"}:
         raise HTTPException(status_code=403, detail="Проверять согласующую подпись может только директор")
     if not file_name.startswith("СОГЛАСОВАНО_") or not file_name.endswith(".docx.sig"):
         raise HTTPException(status_code=400, detail="Недопустимое имя подписи")

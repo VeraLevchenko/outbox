@@ -38,6 +38,11 @@ api.interceptors.response.use(
 );
 
 // API методы для авторизации
+export const adminApi = {
+  getCredentials: () => api.get('/api/admin/credentials'),
+  downloadCredentials: () => api.get('/api/admin/credentials/download', { responseType: 'blob' }),
+};
+
 export const authApi = {
   login: (username, password) =>
     api.post('/api/auth/login', { username, password }),

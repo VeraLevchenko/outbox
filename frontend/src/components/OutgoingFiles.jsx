@@ -4,6 +4,7 @@ import FileViewer from './FileViewer';
 import SigningModal from './SigningModal';
 
 const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
+  const isDirector = userRole === 'director' || userRole === 'acting_director';
   const [mainDocx, setMainDocx] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -25,7 +26,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   useEffect(() => {
     if (cardId) {
       loadFiles();
-      if (userRole === 'director') loadExecutor();
+      if (isDirector) loadExecutor();
       else setExecutor(null);
     }
   }, [cardId, card, userRole]);
@@ -71,7 +72,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   useEffect(() => {
     let cancelled = false;
     const checkApproval = async () => {
-      if (userRole !== 'director' || !selectedFile?.name?.toLowerCase().endsWith('.docx')) {
+      if (!isDirector || !selectedFile?.name?.toLowerCase().endsWith('.docx')) {
         setApprovalStatus(null);
         return;
       }
@@ -91,7 +92,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   useEffect(() => {
     let cancelled = false;
     const verifyApproval = async () => {
-      if (userRole !== 'director' || !approvalStatus?.signed || !selectedFile) {
+      if (!isDirector || !approvalStatus?.signed || !selectedFile) {
         setApprovalVerification(null);
         return;
       }
@@ -182,7 +183,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   const handleConfirmReturn = async () => {
     try {
       // Определяем целевую колонку в зависимости от роли
-      const targetColumn = userRole === 'director'
+      const targetColumn = isDirector
         ? 'На доработку'
         : 'В работе';
 
@@ -278,7 +279,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
         </div>
 
         {/* Информация об исполнителе */}
-        {userRole === 'director' && executor && (
+        {isDirector && executor && (
           <div style={{
             padding: '12px 16px',
             background: '#ffffff',
@@ -302,7 +303,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
             </div>
           </div>
         )}
-        {userRole === 'director' && executorLoading && (
+        {isDirector && executorLoading && (
           <div style={{
             padding: '12px 16px',
             background: '#ffffff',
@@ -315,7 +316,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
         )}
 
         {/* Предупреждение, если исполнитель не найден */}
-        {userRole === 'director' && !executorLoading && !executor && (
+        {isDirector && !executorLoading && !executor && (
           <div style={{
             padding: '12px 16px',
             background: '#fef3c7',
@@ -343,14 +344,14 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
           </div>
         )}
 
-        {userRole === 'director' && selectedFile?.name?.toLowerCase().endsWith('.docx') && (
+        {isDirector && selectedFile?.name?.toLowerCase().endsWith('.docx') && (
           <div style={{ padding: '12px 16px', background: approvalStatus?.signed && approvalVerification === 'valid' ? '#f0fdf4' : approvalStatus?.stale ? '#fef2f2' : '#fffbeb', borderBottom: '2px solid #e5e7eb', color: approvalStatus?.signed && approvalVerification === 'valid' ? '#166534' : approvalStatus?.stale ? '#b91c1c' : '#92400e', fontSize: '13px', fontWeight: '600' }}>
             {approvalLoading || approvalVerification === 'checking' ? 'Проверка согласования...' : approvalStatus?.signed && approvalVerification === 'valid' ? '✓ DOCX подписан начальником отдела, подпись действительна' : approvalStatus?.signed ? '❗ Электронная подпись DOCX недействительна или не проверена' : approvalStatus?.stale ? '❗ DOCX изменён после согласования' : '⚠ Подпись начальника отдела не найдена'}
           </div>
         )}
 
         {/* Кнопка "Зарегистрировать и подписать" */}
-        {userRole === 'director' && executor && (
+        {isDirector && executor && (
           <div style={{
             padding: '16px',
             background: '#ffffff',
