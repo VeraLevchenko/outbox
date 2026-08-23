@@ -8,6 +8,7 @@ from pathlib import Path
 from app.core.config import settings
 from app.api import kaiten, files, auth, journal, outbox
 from app.services.kaiten_service import kaiten_service
+from app.services.file_service import file_service
 
 
 # Фоновые задачи для polling
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI):
     for task in background_tasks:
         task.cancel()
     await asyncio.gather(*background_tasks, return_exceptions=True)
+    await file_service.close()
     print("[Shutdown] All tasks stopped")
 
 

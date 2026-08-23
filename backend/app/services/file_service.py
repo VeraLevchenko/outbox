@@ -12,6 +12,11 @@ class FileService:
         self.incoming_path = Path(settings.INCOMING_FILES_PATH)
         self.outgoing_path = Path(settings.OUTGOING_FILES_PATH)
         self.use_mock = settings.KAITEN_USE_MOCK  # Использовать mock только если явно указано
+        self._http_client = httpx.AsyncClient(
+            timeout=30.0,
+            follow_redirects=True,
+            limits=httpx.Limits(max_keepalive_connections=10, keepalive_expiry=300.0),
+        )
 
     def _get_mock_incoming_files(self, incoming_no: str) -> List[Dict]:
         """Генерировать mock-данные для входящих файлов"""
@@ -161,14 +166,15 @@ class FileService:
             Байты файла
         """
         print(f"[FileService] Downloading file from: {file_url}")
+        response = await self._http_client.get(file_url)
+        response.raise_for_status()
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(file_url)
-            response.raise_for_status()
+        file_bytes = response.content
+        print(f"[FileService] Downloaded {len(file_bytes)} bytes")
+        return file_bytes
 
-            file_bytes = response.content
-            print(f"[FileService] Downloaded {len(file_bytes)} bytes")
-            return file_bytes
+    async def close(self):
+        await self._http_client.aclose()
 
     def get_google_viewer_url(self, file_url: str) -> str:
         """

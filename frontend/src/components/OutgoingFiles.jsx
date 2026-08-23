@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { filesApi, kaitenApi, outboxApi } from '../services/api';
+import { kaitenApi, outboxApi } from '../services/api';
 import FileViewer from './FileViewer';
 import SigningModal from './SigningModal';
 
-const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
+const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   const [mainDocx, setMainDocx] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -25,12 +25,13 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
       loadFiles();
       loadExecutor();
     }
-  }, [cardId]);
+  }, [cardId, card]);
 
   useEffect(() => {
     let cancelled = false;
     const loadPreview = async () => {
-      if (!selectedFile?.name?.toLowerCase().endsWith('.pdf')) {
+      const belongsToCard = card?.files?.some(file => (file.url || file.path) === selectedFile?.path);
+      if (!belongsToCard || !selectedFile?.name?.toLowerCase().endsWith('.pdf')) {
         setPreview(null);
         return;
       }
@@ -47,32 +48,26 @@ const OutgoingFiles = ({ cardId, onCardsUpdate, userRole }) => {
     };
     loadPreview();
     return () => { cancelled = true; };
-  }, [cardId, selectedFile]);
+  }, [cardId, card, selectedFile]);
 
-  const loadFiles = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      console.log('[OutgoingFiles] Loading files for card:', cardId);
-      const response = await filesApi.getOutgoingFiles(cardId);
-      console.log('[OutgoingFiles] Files loaded:', response.data);
-      console.log('[OutgoingFiles] Main PDF:', response.data.main_docx);
-      setMainDocx(response.data.main_docx);
-      setAttachments(response.data.attachments || []);
-      setCardTitle(response.data.card_title || '');
+  const loadFiles = () => {
+    setLoading(true);
+    setError(null);
+    const cardFiles = (card?.files || [])
+      .filter(file => !file.deleted)
+      .map(file => ({
+        name: file.name,
+        path: file.url || file.path,
+        size: file.size || 0,
+        type: file.type || 'application/octet-stream',
+        is_main: false
+      }));
 
-      // Автоматически выбираем главный PDF
-      if (response.data.main_docx) {
-        setSelectedFile(response.data.main_docx);
-      } else if (response.data.attachments && response.data.attachments.length > 0) {
-        setSelectedFile(response.data.attachments[0]);
-      }
-    } catch (err) {
-      setError('Ошибка загрузки исходящих файлов: ' + err.message);
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    setMainDocx(null);
+    setAttachments(cardFiles);
+    setCardTitle(card?.title || '');
+    setSelectedFile(cardFiles[0] || null);
+    setLoading(false);
   };
 
   const loadExecutor = async () => {

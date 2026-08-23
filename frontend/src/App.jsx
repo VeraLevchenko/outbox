@@ -187,7 +187,7 @@ function App() {
       {/* Контент */}
       <div className="content">
         {mainTab === 'cards' && subTab === 'incoming' && <IncomingFiles cardId={cardId} />}
-        {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} onCardsUpdate={loadCards} userRole={user?.role} />}
+        {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} card={cards.find(card => card.id === cardId)} onCardsUpdate={loadCards} userRole={user?.role} />}
         {mainTab === 'journal' && <Journal />}
       </div>
     </div>
