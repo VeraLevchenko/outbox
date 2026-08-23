@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Optional
 from pydantic import BaseModel
 from app.services.kaiten_service import kaiten_service
+from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/api/kaiten", tags=["kaiten"])
 
@@ -14,7 +15,7 @@ class MoveCardRequest(BaseModel):
 
 
 @router.get("/cards")
-async def get_cards(role: str = "director") -> List[Dict]:
+async def get_cards(current_user: dict = Depends(get_current_user)) -> List[Dict]:
     """
     Получить карточки из Kaiten в зависимости от роли пользователя
 
@@ -25,7 +26,8 @@ async def get_cards(role: str = "director") -> List[Dict]:
         Список карточек из соответствующей колонки
     """
     try:
-        # Определяем колонку в зависимости от роли
+        # Роль берём только из проверенного токена, а не из параметра браузера
+        role = current_user.get("role")
         if role == "director":
             column_name = "На подпись"
         elif role == "head":
@@ -36,7 +38,17 @@ async def get_cards(role: str = "director") -> List[Dict]:
         # Получаем карточки из Kaiten
         cards = await kaiten_service.get_cards_from_column(column_name)
 
+        # Начальник видит только карточки, где он назначен ответственным
+        if role == "head":
+            visible_cards = []
+            for card in cards:
+                if await kaiten_service.is_responsible(card["id"], current_user["username"], card.get("members")):
+                    visible_cards.append(card)
+            cards = visible_cards
+
         return cards
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching cards: {str(e)}")
 
@@ -44,7 +56,8 @@ async def get_cards(role: str = "director") -> List[Dict]:
 @router.post("/cards/{card_id}/move")
 async def move_card(
     card_id: int,
-    request: MoveCardRequest
+    request: MoveCardRequest,
+    current_user: dict = Depends(get_current_user)
 ) -> Dict:
     """
     Переместить карточку в другую колонку
@@ -57,6 +70,16 @@ async def move_card(
         Результат операции
     """
     try:
+        role = current_user.get("role")
+        allowed_targets = {
+            "director": {"Отправка", "На доработку", "На подпись Кирова 71"},
+            "head": {"В работе"},
+        }
+        if request.target_column not in allowed_targets.get(role, set()):
+            raise HTTPException(status_code=403, detail="Недопустимое перемещение для вашей роли")
+        if role == "head" and not await kaiten_service.is_responsible(card_id, current_user["username"]):
+            raise HTTPException(status_code=403, detail="Карточка назначена другому начальнику отдела")
+
         success = await kaiten_service.move_card(
             card_id,
             request.target_column,
@@ -69,6 +92,8 @@ async def move_card(
             return {"status": "success", "message": f"Card {card_id} moved to '{request.target_column}'"}
         else:
             raise HTTPException(status_code=500, detail="Failed to move card")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error moving card: {str(e)}")
 

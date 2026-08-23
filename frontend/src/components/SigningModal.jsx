@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { outboxApi } from '../services/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, onSuccess }) => {
+const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, onSuccess, approvalMode = false, sourceFileName }) => {
   const [certificates, setCertificates] = useState([]);
   const [selectedCert, setSelectedCert] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -131,24 +131,23 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
     }
 
     setLoading(true);
-    setStatus('Загрузка PDF...');
+    setStatus(approvalMode ? 'Загрузка DOCX...' : 'Загрузка PDF...');
 
     try {
-      // 1. Получаем PDF
-      const token = localStorage.getItem('token');
-      const pdfResponse = await fetch(`${API_BASE_URL}/api/outbox/download/${pdfFile}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!pdfResponse.ok) {
-        throw new Error(`Ошибка загрузки PDF: ${pdfResponse.status}`);
+      // 1. Получаем неизменённые байты подписываемого документа
+      let pdfArrayBuffer;
+      if (approvalMode) {
+        const response = await outboxApi.getApprovalDocument(cardId, sourceFileName);
+        pdfArrayBuffer = response.data;
+      } else {
+        const token = localStorage.getItem('token');
+        const pdfResponse = await fetch(API_BASE_URL + '/api/outbox/download/' + pdfFile, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!pdfResponse.ok) throw new Error('Ошибка загрузки PDF: ' + pdfResponse.status);
+        pdfArrayBuffer = await pdfResponse.arrayBuffer();
       }
-
-      const pdfBlob = await pdfResponse.blob();
-      const pdfArrayBuffer = await pdfBlob.arrayBuffer();
-      setStatus(`PDF загружен (${pdfArrayBuffer.byteLength} байт)`);
+      setStatus((approvalMode ? 'DOCX' : 'PDF') + ' загружен (' + pdfArrayBuffer.byteLength + ' байт)');
 
       // 2. Конвертируем в Base64
       setStatus('Подготовка данных...');
@@ -196,22 +195,21 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
 
       setStatus('Отправка подписи на сервер...');
 
-      // 5. Отправляем на сервер с данными для журнала
-      await outboxApi.uploadClientSignature({
-        file_id: fileId,
-        signature: signature,
-        thumbprint: selectedCert.thumbprint,
-        cn: selectedCert.cn,
-        // Данные для записи в журнал
-        card_id: cardId,
-        outgoing_no: outgoingNo,
-        formatted_number: formattedNumber,
-        outgoing_date: outgoingDate,
-        to_whom: toWhom,
-        executor: executor
-      });
+      // 5. Передаём подпись на соответствующий серверный сценарий
+      if (approvalMode) {
+        await outboxApi.signAndForward({
+          card_id: cardId, file_name: sourceFileName, signature,
+          thumbprint: selectedCert.thumbprint, cn: selectedCert.cn
+        });
+      } else {
+        await outboxApi.uploadClientSignature({
+          file_id: fileId, signature, thumbprint: selectedCert.thumbprint, cn: selectedCert.cn,
+          card_id: cardId, outgoing_no: outgoingNo, formatted_number: formattedNumber,
+          outgoing_date: outgoingDate, to_whom: toWhom, executor: executor
+        });
+      }
 
-      setStatus('✅ Подпись успешно создана!');
+      setStatus(approvalMode ? '✅ Документ согласован и направлен на подпись' : '✅ Подпись успешно создана!');
       setLoading(false);
 
       // Уведомляем родительский компонент
@@ -263,7 +261,7 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
       }}>
         <h2 style={{ marginBottom: '16px', fontSize: '20px', fontWeight: '600' }}>
-          🔐 Подписание документа
+          🔐 {approvalMode ? 'Согласование DOCX' : 'Подписание документа'}
         </h2>
 
         {/* Статус */}
@@ -342,7 +340,7 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
               cursor: (!selectedCert || loading) ? 'not-allowed' : 'pointer'
             }}
           >
-            {loading ? 'Подписание...' : '🔏 Подписать'}
+            {loading ? 'Подписание...' : approvalMode ? '🔏 Согласовать и направить' : '🔏 Подписать'}
           </button>
           <button
             onClick={onClose}

@@ -54,7 +54,7 @@ function App() {
   const loadCards = async () => {
     try {
       setLoading(true);
-      const response = await kaitenApi.getCards('director');
+      const response = await kaitenApi.getCards();
       const fetchedCards = response.data || [];
       setCards(fetchedCards);
 
@@ -170,12 +170,14 @@ function App() {
         >
           Карточки
         </button>
+        {user.role === 'director' && (
         <button
           className={`tab ${mainTab === 'journal' ? 'active' : ''}`}
           onClick={() => setMainTab('journal')}
         >
           Журнал
         </button>
+        )}
       </div>
 
       {/* Подтабы для карточек */}
@@ -200,7 +202,7 @@ function App() {
       <div className="content">
         {mainTab === 'cards' && subTab === 'incoming' && <IncomingFiles cardId={cardId} />}
         {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} card={cards.find(card => card.id === cardId)} onCardsUpdate={loadCards} userRole={user?.role} />}
-        {mainTab === 'journal' && <Journal />}
+        {user.role === 'director' && mainTab === 'journal' && <Journal />}
       </div>
     </div>
   );

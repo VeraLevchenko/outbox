@@ -1,8 +1,10 @@
 import asyncio
 import httpx
+import mimetypes
 from typing import List, Dict, Optional
 from datetime import datetime
 from app.core.config import settings
+from app.services.config_service import config_service
 
 
 class KaitenService:
@@ -136,7 +138,7 @@ class KaitenService:
             True если успешно, False если ошибка
         """
         # Определяем ID целевой колонки
-        column_id = None
+        column_id = await self.find_column_id(target_column) if target_column == "В работе" else None
         if target_column == "На подпись":
             column_id = settings.KAITEN_COLUMN_TO_SIGN_ID
         elif target_column == "Отправка":
@@ -147,10 +149,6 @@ class KaitenService:
             column_id = settings.KAITEN_COLUMN_REWORK_ID
         elif target_column == "На подпись Кирова 71":
             column_id = settings.KAITEN_COLUMN_KIROV_71_ID
-        elif target_column == "В работе":
-            # Для начальника отдела - возврат в "В работе"
-            # Используем ID из settings если он есть, иначе оставляем None
-            column_id = None  # Нужно добавить в .env если требуется
 
         if not column_id:
             print(f"Unknown target column: {target_column}")
@@ -236,6 +234,58 @@ class KaitenService:
             except Exception as e:
                 print(f"[Kaiten API] Failed to add comment to card {card_id}: {e}")
                 return False
+
+    async def find_column_id(self, title: str) -> Optional[int]:
+        """Найти колонку текущей доски по точному названию."""
+        if self.use_mock:
+            return settings.KAITEN_COLUMN_HEAD_REVIEW_ID
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.api_url}/boards/{settings.KAITEN_BOARD_ID}/columns",
+                    headers=self.headers, timeout=10.0
+                )
+                response.raise_for_status()
+                for column in response.json():
+                    if column.get("title") == title:
+                        return column.get("id")
+                    for subcolumn in column.get("subcolumns") or []:
+                        if subcolumn.get("title") == title:
+                            return subcolumn.get("id")
+            except Exception as exc:
+                print(f"[Kaiten API] Failed to resolve column '{title}': {exc}")
+        return None
+
+    async def upload_card_file(self, card_id: int, filename: str, content: bytes) -> Optional[Dict]:
+        """Загрузить вложение в карточку Kaiten."""
+        if self.use_mock:
+            return {"id": 1, "card_id": card_id, "name": filename, "size": len(content)}
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        headers = {"Authorization": f"Bearer {self.api_token}", "Accept": "application/json"}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.put(
+                    f"{self.api_url}/cards/{card_id}/files", headers=headers,
+                    files={"file": (filename, content, content_type)}, timeout=30.0
+                )
+                if response.status_code == 200:
+                    print(f"[Kaiten API] Uploaded '{filename}' to card {card_id}")
+                    return response.json()
+                print(f"[Kaiten API] File upload failed: {response.status_code}, {response.text}")
+            except Exception as exc:
+                print(f"[Kaiten API] File upload failed for card {card_id}: {exc}")
+        return None
+
+    async def is_responsible(self, card_id: int, username: str, members: Optional[List[Dict]] = None) -> bool:
+        """Проверить, что пользователь является ответственным (type=2)."""
+        if members is None:
+            members = await self.get_card_members(card_id)
+        normalized = config_service.get_kaiten_username_for_head(username).strip().lower()
+        return any(
+            member.get("type") == 2 and
+            (member.get("username") or "").strip().lower() == normalized
+            for member in members
+        )
 
     async def add_tag(self, card_id: int, tag_id: int) -> bool:
         """

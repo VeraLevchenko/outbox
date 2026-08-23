@@ -5,6 +5,7 @@ from datetime import date, datetime
 from pathlib import Path
 from pydantic import BaseModel
 import io
+import hashlib
 import uuid
 import base64
 
@@ -58,6 +59,9 @@ async def prepare_registration(
         Данные регистрации с номером и датой
     """
     try:
+        if current_user.get("role") != "director":
+            raise HTTPException(status_code=403, detail="Регистрировать исходящие письма может только директор")
+
         # 1. Получаем карточку для извлечения title
         card = await kaiten_service.get_card_by_id(request.card_id)
         if not card:
@@ -154,6 +158,18 @@ async def prepare_registration(
                     detail=f"URL файла '{request.selected_file_name}' не найден"
                 )
             docx_bytes = await docx_service.download_docx_from_url(docx_url)
+
+        # Проверяем подпись начальника именно для этой версии DOCX
+        document_digest = hashlib.sha256(docx_bytes).hexdigest()
+        approval_name = f"СОГЛАСОВАНО_{document_digest[:12]}_{Path(request.selected_file_name).name}.sig"
+        if not any(
+            not item.get("deleted") and item.get("name") == approval_name
+            for item in card_files
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Для выбранной версии DOCX отсутствует подпись начальника отдела",
+            )
 
         # 9. Проверяем наличие плейсхолдеров
         has_placeholders = docx_service.check_has_placeholders(docx_bytes)
@@ -297,6 +313,9 @@ async def upload_client_signature(
         Результат сохранения подписи и создания записи в журнале
     """
     try:
+        if current_user.get("role") != "director":
+            raise HTTPException(status_code=403, detail="Подписывать зарегистрированный PDF может только директор")
+
         # Декодируем подпись из Base64
         try:
             sig_bytes = base64.b64decode(data.signature)

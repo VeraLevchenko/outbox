@@ -13,6 +13,8 @@ class ConfigService:
         self.numbering_rules_file = self.config_dir / "numbering_rules.json"
         self._executors_cache = None
         self._numbering_rules_cache = None
+        self.head_users_file = self.config_dir / "head_users.json"
+        self._head_users_cache = None
 
     def _load_json(self, file_path: Path) -> Dict:
         """Загрузить JSON файл"""
@@ -90,10 +92,18 @@ class ConfigService:
             'reset_yearly': False
         })
 
+    def get_kaiten_username_for_head(self, username: str) -> str:
+        """Получить Kaiten username для учётной записи начальника."""
+        if self._head_users_cache is None:
+            config = self._load_json(self.head_users_file)
+            self._head_users_cache = config.get("users", {})
+        return self._head_users_cache.get(username, username)
+
     def reload_configs(self):
         """Перезагрузить конфигурации из файлов (для быстрых изменений)"""
         self._executors_cache = None
         self._numbering_rules_cache = None
+        self._head_users_cache = None
         print("Configuration files reloaded")
 
 

@@ -14,6 +14,10 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   const [registering, setRegistering] = useState(false);
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showSigningModal, setShowSigningModal] = useState(false);
+  const [showApprovalSigning, setShowApprovalSigning] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState(null);
+  const [approvalLoading, setApprovalLoading] = useState(false);
+  const [approvalVerification, setApprovalVerification] = useState(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnComment, setReturnComment] = useState('');
   const [cardTitle, setCardTitle] = useState('');
@@ -21,9 +25,10 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   useEffect(() => {
     if (cardId) {
       loadFiles();
-      loadExecutor();
+      if (userRole === 'director') loadExecutor();
+      else setExecutor(null);
     }
-  }, [cardId, card]);
+  }, [cardId, card, userRole]);
 
 
   const loadFiles = () => {
@@ -42,7 +47,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
     setMainDocx(null);
     setAttachments(cardFiles);
     setCardTitle(card?.title || '');
-    setSelectedFile(cardFiles[0] || null);
+    setSelectedFile(cardFiles.find(file => file.name.toLowerCase().endsWith('.docx')) || cardFiles[0] || null);
     setLoading(false);
   };
 
@@ -63,6 +68,69 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    const checkApproval = async () => {
+      if (userRole !== 'director' || !selectedFile?.name?.toLowerCase().endsWith('.docx')) {
+        setApprovalStatus(null);
+        return;
+      }
+      try {
+        setApprovalLoading(true);
+        const response = await outboxApi.getApprovalStatus(cardId, selectedFile.name);
+        if (!cancelled) setApprovalStatus(response.data);
+      } catch (err) {
+        if (!cancelled) setApprovalStatus({ signed: false, error: err.response?.data?.detail || err.message });
+      } finally {
+        if (!cancelled) setApprovalLoading(false);
+      }
+    };
+    checkApproval();
+    return () => { cancelled = true; };
+  }, [cardId, selectedFile, userRole]);
+  useEffect(() => {
+    let cancelled = false;
+    const verifyApproval = async () => {
+      if (userRole !== 'director' || !approvalStatus?.signed || !selectedFile) {
+        setApprovalVerification(null);
+        return;
+      }
+      try {
+        setApprovalVerification('checking');
+        if (typeof cadesplugin === 'undefined') throw new Error('Плагин КриптоПро не найден');
+        const [documentResponse, signatureResponse] = await Promise.all([
+          outboxApi.getApprovalDocument(cardId, selectedFile.name),
+          outboxApi.getApprovalSignature(cardId, approvalStatus.signature_name)
+        ]);
+        const toBase64 = (buffer) => {
+          let binary = '';
+          const bytes = new Uint8Array(buffer);
+          for (let index = 0; index < bytes.byteLength; index++) binary += String.fromCharCode(bytes[index]);
+          return btoa(binary);
+        };
+        const signedData = await cadesplugin.CreateObjectAsync('CAdESCOM.CadesSignedData');
+        await signedData.propset_ContentEncoding(cadesplugin.CADESCOM_BASE64_TO_BINARY);
+        await signedData.propset_Content(toBase64(documentResponse.data));
+        await signedData.VerifyCades(toBase64(signatureResponse.data), cadesplugin.CADESCOM_CADES_BES, true);
+        if (!cancelled) setApprovalVerification('valid');
+      } catch (err) {
+        console.error('Ошибка проверки согласующей подписи:', err);
+        if (!cancelled) setApprovalVerification('invalid');
+      }
+    };
+    verifyApproval();
+    return () => { cancelled = true; };
+  }, [cardId, selectedFile, userRole, approvalStatus?.signed, approvalStatus?.signature_name]);
+
+
+  const handleApproveAndForward = () => {
+    if (!selectedFile?.name?.toLowerCase().endsWith('.docx')) {
+      alert('Для согласования выберите DOCX документ.');
+      return;
+    }
+    setShowApprovalSigning(true);
+  };
+
   const handleRegisterAndSign = async () => {
     if (!executor) {
       alert('Исполнитель не найден. Убедитесь, что в карточке Kaiten есть участник с типом 2.');
@@ -79,6 +147,11 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
       alert(`Файл "${selectedFile.name}" не является DOCX документом.\n\nРегистрировать можно только DOCX файлы с полями для заполнения ({{outgoing_no}}, {{outgoing_date}}, {{stamp}}).`);
       return;
     }
+    if (!approvalStatus?.signed || approvalVerification !== 'valid') {
+      alert(approvalStatus?.stale ? 'DOCX был изменён после согласования. Требуется повторная подпись начальника отдела.' : approvalStatus?.signed ? 'Не удалось криптографически проверить подпись начальника отдела.' : 'Сначала требуется подпись начальника отдела.');
+      return;
+    }
+
 
     try {
       setRegistering(true);
@@ -205,7 +278,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
         </div>
 
         {/* Информация об исполнителе */}
-        {executor && (
+        {userRole === 'director' && executor && (
           <div style={{
             padding: '12px 16px',
             background: '#ffffff',
@@ -229,7 +302,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
             </div>
           </div>
         )}
-        {executorLoading && (
+        {userRole === 'director' && executorLoading && (
           <div style={{
             padding: '12px 16px',
             background: '#ffffff',
@@ -242,7 +315,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
         )}
 
         {/* Предупреждение, если исполнитель не найден */}
-        {!executorLoading && !executor && (
+        {userRole === 'director' && !executorLoading && !executor && (
           <div style={{
             padding: '12px 16px',
             background: '#fef3c7',
@@ -259,8 +332,25 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
           </div>
         )}
 
+        {userRole === 'head' && (
+          <div style={{ padding: '16px', background: '#ffffff', borderBottom: '2px solid #e5e7eb' }}>
+            <button onClick={handleApproveAndForward} style={{ width: '100%', padding: '12px 16px', background: '#4b5563', color: 'white', border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+              Согласовать и направить на подпись
+            </button>
+            <button onClick={handleReturn} style={{ width: '100%', marginTop: '8px', padding: '10px 16px', background: '#ffffff', color: '#dc2626', border: '2px solid #dc2626', borderRadius: '4px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+              Вернуть исполнителю
+            </button>
+          </div>
+        )}
+
+        {userRole === 'director' && selectedFile?.name?.toLowerCase().endsWith('.docx') && (
+          <div style={{ padding: '12px 16px', background: approvalStatus?.signed && approvalVerification === 'valid' ? '#f0fdf4' : approvalStatus?.stale ? '#fef2f2' : '#fffbeb', borderBottom: '2px solid #e5e7eb', color: approvalStatus?.signed && approvalVerification === 'valid' ? '#166534' : approvalStatus?.stale ? '#b91c1c' : '#92400e', fontSize: '13px', fontWeight: '600' }}>
+            {approvalLoading || approvalVerification === 'checking' ? 'Проверка согласования...' : approvalStatus?.signed && approvalVerification === 'valid' ? '✓ DOCX подписан начальником отдела, подпись действительна' : approvalStatus?.signed ? '❗ Электронная подпись DOCX недействительна или не проверена' : approvalStatus?.stale ? '❗ DOCX изменён после согласования' : '⚠ Подпись начальника отдела не найдена'}
+          </div>
+        )}
+
         {/* Кнопка "Зарегистрировать и подписать" */}
-        {executor && (
+        {userRole === 'director' && executor && (
           <div style={{
             padding: '16px',
             background: '#ffffff',
@@ -476,6 +566,21 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
           fileName={selectedFile?.name}
         />
       </div>
+
+      {showApprovalSigning && selectedFile && (
+        <SigningModal
+          isOpen={showApprovalSigning}
+          onClose={() => setShowApprovalSigning(false)}
+          cardId={cardId}
+          approvalMode={true}
+          sourceFileName={selectedFile.name}
+          onSuccess={async () => {
+            setShowApprovalSigning(false);
+            if (onCardsUpdate) await onCardsUpdate();
+            alert('✅ DOCX подписан, подпись загружена в Kaiten, карточка направлена директору');
+          }}
+        />
+      )}
 
       {/* Модальное окно подписания */}
       {registrationResult && (

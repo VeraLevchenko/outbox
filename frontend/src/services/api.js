@@ -50,7 +50,7 @@ export const authApi = {
 
 // API методы для Kaiten
 export const kaitenApi = {
-  getCards: (role) => api.get(`/api/kaiten/cards?role=${role}`),
+  getCards: () => api.get(`/api/kaiten/cards`),
   moveCard: (cardId, targetColumn, comment, outgoingNo, outgoingDate) =>
     api.post(`/api/kaiten/cards/${cardId}/move`, {
       target_column: targetColumn,
@@ -89,6 +89,13 @@ export const outboxApi = {
     }),
   uploadClientSignature: (data) =>
     api.post('/api/outbox/upload-client-signature', data),
+  getApprovalDocument: (cardId, fileName) =>
+    api.get(`/api/approval/document/${cardId}`, { params: { file_name: fileName }, responseType: 'arraybuffer' }),
+  getApprovalStatus: (cardId, fileName) =>
+    api.get(`/api/approval/status/${cardId}`, { params: { file_name: fileName } }),
+  getApprovalSignature: (cardId, fileName) =>
+    api.get(`/api/approval/signature/${cardId}`, { params: { file_name: fileName }, responseType: 'arraybuffer' }),
+  signAndForward: (data) => api.post('/api/approval/sign', data),
 };
 
 export default api;
