@@ -185,6 +185,12 @@ class DocxService:
                 'valid_from': '02.12.2025',
                 'valid_to': '25.02.2027',
             },
+            'mezentseva': {
+                'serial': 'F3E16AEEEF42503B17051E597BDF345EFB901DE1',
+                'owner': 'Мезенцева Дарья Витальевна',
+                'valid_from': '06.08.2025',
+                'valid_to': '30.10.2026',
+            },
             'default': {
                 'serial': '5C6BE147FA657D807EF3A907DFB53553',
                 'owner': 'Левченко Вера Сергеевна',
