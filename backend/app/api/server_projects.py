@@ -67,7 +67,10 @@ def _project(folder: str) -> Path:
 
 def _files(project: Path) -> list[Path]:
     try:
-        children = sorted(project.iterdir(), key=lambda item: item.name.lower())
+        children = sorted(
+            (item for item in project.iterdir() if not item.name.startswith("~$")),
+            key=lambda item: item.name.lower(),
+        )
         if any(item.is_symlink() for item in children):
             raise HTTPException(status_code=400, detail="В папке проекта есть недопустимая ссылка на файл")
         if any(not item.is_file() for item in children):

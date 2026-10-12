@@ -118,6 +118,10 @@ function App() {
   const chooseSource = (mode) => {
     sessionStorage.setItem('sourceMode', mode);
     setSourceMode(mode);
+    setCardId(null);
+    setCards([]);
+    setMainTab('cards');
+    setSubTab('outgoing');
     loadCards(mode);
   };
 
@@ -189,6 +193,14 @@ function App() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <label style={{ fontSize: '13px' }}>
+            Источник писем{' '}
+            <select value={sourceMode} onChange={(e) => chooseSource(e.target.value)} style={{ padding: '7px', borderRadius: '4px' }}>
+              <option value="kaiten">С КАЙТЕН</option>
+              <option value="server">С сервера</option>
+            </select>
+          </label>
+          {sourceMode === 'server' && <button onClick={() => loadCards('server')} style={{ padding: '8px 12px', border: '1px solid white', borderRadius: '4px', background: 'transparent', color: 'white', cursor: 'pointer' }}>Обновить проекты</button>}
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontWeight: '600', fontSize: '14px' }}>{user.full_name || user.username}</div>
             <div style={{ fontSize: '12px', opacity: '0.9' }}>

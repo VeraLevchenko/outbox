@@ -141,6 +141,11 @@ class ServerProjectsTest(unittest.TestCase):
         self.assertEqual(self.db.query(OutboxJournal).count(), 1)
         self.assertEqual(server_projects.list_projects(self.db, self.user), [])
 
+    def test_office_lock_file_is_not_offered_as_a_document(self):
+        (self.project / "~$письмо.docx").write_bytes(b"temporary lock")
+        names = [item["name"] for item in server_projects.list_files("2331-10", self.user)]
+        self.assertEqual(names, ["письмо.docx", "приложение.txt"])
+
 
 if __name__ == "__main__":
     unittest.main()

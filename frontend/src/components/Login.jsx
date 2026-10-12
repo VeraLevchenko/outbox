@@ -6,7 +6,7 @@ const Login = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [availableRoles, setAvailableRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState('');
-  const [sourceMode, setSourceMode] = useState('kaiten');
+  const [sourceMode, setSourceMode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -15,6 +15,10 @@ const Login = ({ onLoginSuccess }) => {
 
     if (!username || !password) {
       setError('Введите имя пользователя и пароль');
+      return;
+    }
+    if (!sourceMode) {
+      setError('Выберите источник писем');
       return;
     }
 
@@ -157,6 +161,7 @@ const Login = ({ onLoginSuccess }) => {
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontWeight: '500' }}>Источник писем</label>
             <select value={sourceMode} onChange={(e) => setSourceMode(e.target.value)} disabled={loading} style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '5px' }}>
+              <option value="" disabled>Выберите источник писем</option>
               <option value="kaiten">С КАЙТЕН</option>
               <option value="server">С сервера</option>
             </select>
