@@ -65,6 +65,17 @@ def _project(folder: str) -> Path:
     return path
 
 
+def _signed_output(number: str, db: Session) -> Path:
+    if not NUMBER_PATTERN.fullmatch(number):
+        raise HTTPException(status_code=400, detail="Некорректный исходящий номер")
+    if not db.query(OutboxJournal.id).filter(OutboxJournal.formatted_number == number).first():
+        raise HTTPException(status_code=404, detail="Подписанный документ не найден в журнале")
+    path = Path(settings.OUTGOING_FILES_PATH) / number
+    if path.is_symlink() or not path.is_dir():
+        raise HTTPException(status_code=404, detail="Папка подписанных документов не найдена")
+    return path
+
+
 def _files(project: Path) -> list[Path]:
     try:
         children = sorted(
@@ -170,6 +181,35 @@ def approval_status(folder: str, filename: str, user: dict = Depends(get_current
     names = {path.name for path in _files(project)}
     stale = any(name.startswith("СОГЛАСОВАНО_") and name.endswith(f"_{source.name}.sig") for name in names)
     return {"signed": expected in names, "stale": expected not in names and stale, "signature_name": expected if expected in names else None}
+
+
+@router.get("/signed/{number}/files")
+def list_signed_files(number: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    _require_director(user)
+    return [
+        {"name": path.name, "size": path.stat().st_size, "is_docx": path.suffix.lower() == ".docx"}
+        for path in _files(_signed_output(number, db))
+    ]
+
+
+@router.get("/signed/{number}/files/{filename}")
+def get_signed_file(number: str, filename: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    _require_director(user)
+    path = _file(_signed_output(number, db), filename)
+    media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return FileResponse(path, media_type=media_type, filename=path.name)
+
+
+@router.get("/signed/{number}/preview/{filename}")
+def preview_signed_docx(number: str, filename: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    _require_director(user)
+    path = _file(_signed_output(number, db), filename)
+    if path.suffix.lower() != ".docx":
+        raise HTTPException(status_code=400, detail="Предпросмотр доступен только для DOCX")
+    try:
+        return Response(pdf_service.convert_docx_to_pdf(path.read_bytes()), media_type="application/pdf")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Не удалось открыть Word документ: {exc}") from exc
 
 
 @router.post("/prepare")

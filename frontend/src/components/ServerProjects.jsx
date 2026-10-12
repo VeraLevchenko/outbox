@@ -17,12 +17,14 @@ const ServerProjects = ({ folder, project, onProjectsUpdate, userRole }) => {
   const [registration, setRegistration] = useState(null);
   const [showSigning, setShowSigning] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [viewingSigned, setViewingSigned] = useState(false);
 
   useEffect(() => {
     setFiles([]);
     setSelected(null);
     setRegistration(null);
     setShowSigning(false);
+    setViewingSigned(false);
     setToWhom('');
     setExecutor('');
     setContent('');
@@ -50,9 +52,13 @@ const ServerProjects = ({ folder, project, onProjectsUpdate, userRole }) => {
     let cancelled = false;
     let url = null;
     setPreviewUrl(null);
-    const request = extension === 'docx'
-      ? serverProjectsApi.previewDocx(folder, selected.name)
-      : serverProjectsApi.downloadFile(folder, selected.name);
+    const request = viewingSigned
+      ? extension === 'docx'
+        ? serverProjectsApi.previewSignedDocx(folder, selected.name)
+        : serverProjectsApi.downloadSignedFile(folder, selected.name)
+      : extension === 'docx'
+        ? serverProjectsApi.previewDocx(folder, selected.name)
+        : serverProjectsApi.downloadFile(folder, selected.name);
     request
       .then((response) => {
         if (cancelled) return;
@@ -61,10 +67,10 @@ const ServerProjects = ({ folder, project, onProjectsUpdate, userRole }) => {
       })
       .catch((err) => { if (!cancelled) setError(errorText(err)); });
     return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
-  }, [folder, selected]);
+  }, [folder, selected, viewingSigned]);
 
   useEffect(() => {
-    if (!folder || !selected?.is_docx) {
+    if (!folder || viewingSigned || !selected?.is_docx) {
       setApprovalStatus('');
       return undefined;
     }
@@ -100,12 +106,14 @@ const ServerProjects = ({ folder, project, onProjectsUpdate, userRole }) => {
     };
     checkApproval();
     return () => { cancelled = true; };
-  }, [folder, selected]);
+  }, [folder, selected, viewingSigned]);
 
   const downloadSelected = async () => {
     if (!selected) return;
     try {
-      const response = await serverProjectsApi.downloadFile(folder, selected.name);
+      const response = viewingSigned
+        ? await serverProjectsApi.downloadSignedFile(folder, selected.name)
+        : await serverProjectsApi.downloadFile(folder, selected.name);
       const url = URL.createObjectURL(response.data);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -114,6 +122,32 @@ const ServerProjects = ({ folder, project, onProjectsUpdate, userRole }) => {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       setError(errorText(err));
+    }
+  };
+
+  const showSignedFiles = async () => {
+    setViewingSigned(true);
+    setFiles([]);
+    setSelected(null);
+    setError('');
+    setLoading(true);
+    try {
+      const response = await serverProjectsApi.getSignedFiles(folder);
+      const signedFiles = response.data;
+      const generatedPrefix = `${folder.replace(/-/g, '_')}_`;
+      setFiles(signedFiles);
+      setSelected(
+        signedFiles.find((file) => file.name.startsWith(generatedPrefix) && file.name.toLowerCase().endsWith('.pdf'))
+        || signedFiles.find((file) => file.name.toLowerCase().endsWith('.pdf'))
+        || signedFiles[0]
+        || null
+      );
+      return true;
+    } catch (err) {
+      setError(`Документ подписан, но не удалось открыть папку «Исходящие»: ${errorText(err)}`);
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -157,17 +191,21 @@ const ServerProjects = ({ folder, project, onProjectsUpdate, userRole }) => {
   return (
     <div style={{ display: 'flex', gap: '24px', padding: '24px', height: '100%', boxSizing: 'border-box' }}>
       <div style={{ width: '340px', flexShrink: 0, overflowY: 'auto' }}>
-        <h2 style={{ marginTop: 0 }}>Проект № {folder}</h2>
+        <h2 style={{ marginTop: 0 }}>{viewingSigned ? 'Подписано' : 'Проект'} № {folder}</h2>
+        <p style={{ fontSize: '13px', color: '#4b5563' }}>
+          {viewingSigned ? `Исходящие\\${folder}` : `Проекты_исходящие\\${folder}`}
+        </p>
+        {viewingSigned && <button onClick={onProjectsUpdate} style={{ padding: '9px 12px', marginBottom: '16px' }}>К следующему проекту</button>}
         {loading && <p>Загрузка файлов...</p>}
         {error && <p role="alert" style={{ color: '#b91c1c' }}>{error}</p>}
-        {!loading && files.length === 0 && <p>В папке нет файлов.</p>}
-        {!loading && files.length > 0 && !files.some((file) => file.is_docx) && <p role="alert">В папке нет Word документа DOCX для подписи.</p>}
+        {!loading && files.length === 0 && !error && <p>В папке нет файлов.</p>}
+        {!viewingSigned && !loading && files.length > 0 && !files.some((file) => file.is_docx) && <p role="alert">В папке нет Word документа DOCX для подписи.</p>}
         {files.map((file) => (
           <button key={file.name} onClick={() => setSelected(file)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px', marginBottom: '6px', border: '1px solid #d1d5db', borderRadius: '4px', background: selected?.name === file.name ? '#e5e7eb' : 'white', cursor: 'pointer' }}>
             {file.name} <small>({(file.size / 1024).toFixed(1)} КБ)</small>
           </button>
         ))}
-        <label style={{ display: 'block', marginTop: '16px' }}>Кому
+        {!viewingSigned && <><label style={{ display: 'block', marginTop: '16px' }}>Кому
           <input value={toWhom} onChange={(event) => setToWhom(event.target.value)} style={{ display: 'block', width: '100%', padding: '9px', boxSizing: 'border-box' }} />
         </label>
         <label style={{ display: 'block', marginTop: '12px' }}>Исполнитель
@@ -182,6 +220,7 @@ const ServerProjects = ({ folder, project, onProjectsUpdate, userRole }) => {
         <button onClick={prepare} disabled={preparing || !selected?.is_docx} style={{ marginTop: '18px', padding: '12px', width: '100%', background: '#4b5563', color: 'white', border: 0, borderRadius: '4px', cursor: 'pointer' }}>
           {preparing ? 'Подготовка...' : 'Зарегистрировать и подписать'}
         </button>
+        </>}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         {selected && <div style={{ padding: '10px', background: '#f3f4f6' }}>{selected.name}</div>}
@@ -204,8 +243,9 @@ const ServerProjects = ({ folder, project, onProjectsUpdate, userRole }) => {
           onSuccess={async (result) => {
             setShowSigning(false);
             setRegistration(null);
-            await onProjectsUpdate();
-            alert(result?.warning || `Документ № ${folder} подписан, записан в журнал, папка помечена «подписано».`);
+            const shown = await showSignedFiles();
+            if (result?.warning) alert(result.warning);
+            else if (!shown) alert(`Документ № ${folder} подписан, но открыть подписанные файлы не удалось.`);
           }}
         />
       )}

@@ -85,6 +85,13 @@ class ServerProjectsTest(unittest.TestCase):
         saved_docx = Document(next(output.glob("*.docx")))
         self.assertIn("2331-10", saved_docx.paragraphs[0].text)
         self.assertEqual((output / "приложение.txt").read_text(encoding="utf-8"), "Приложение")
+        signed_names = {item["name"] for item in server_projects.list_signed_files("2331-10", self.db, self.user)}
+        self.assertIn("приложение.txt", signed_names)
+        self.assertTrue(any(name.endswith(".pdf.sig") for name in signed_names))
+        self.assertEqual(
+            Path(server_projects.get_signed_file("2331-10", "приложение.txt", self.db, self.user).path),
+            output / "приложение.txt",
+        )
         self.assertFalse(self.project.exists())
         self.assertTrue((self.projects / "2331-10 подписано").is_dir())
         self.assertEqual(server_projects.list_projects(self.db, self.user), [])

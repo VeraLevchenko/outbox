@@ -73,6 +73,9 @@ export const serverProjectsApi = {
   downloadFile: (folder, filename) => api.get(`/api/server-projects/${encodeURIComponent(folder)}/files/${encodeURIComponent(filename)}`, { responseType: 'blob' }),
   previewDocx: (folder, filename) => api.get(`/api/server-projects/${encodeURIComponent(folder)}/preview/${encodeURIComponent(filename)}`, { responseType: 'blob' }),
   getApprovalStatus: (folder, filename) => api.get(`/api/server-projects/${encodeURIComponent(folder)}/approval/${encodeURIComponent(filename)}`),
+  getSignedFiles: (number) => api.get(`/api/server-projects/signed/${encodeURIComponent(number)}/files`),
+  downloadSignedFile: (number, filename) => api.get(`/api/server-projects/signed/${encodeURIComponent(number)}/files/${encodeURIComponent(filename)}`, { responseType: 'blob' }),
+  previewSignedDocx: (number, filename) => api.get(`/api/server-projects/signed/${encodeURIComponent(number)}/preview/${encodeURIComponent(filename)}`, { responseType: 'blob' }),
   prepare: (data) => api.post('/api/server-projects/prepare', data),
   sign: (data) => api.post('/api/server-projects/sign', data),
 };
