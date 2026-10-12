@@ -210,6 +210,13 @@
       "start_number": 1,
       "reset_yearly": true
     },
+    "1722559": {
+      "executor_name": "Руднева",
+      "executor_code": "08",
+      "format": "{number}-{executor_code}",
+      "start_number": 1,
+      "reset_yearly": true
+    },
     "531595": {
       "executor_name": "Храбрый И.А.",
       "executor_code": "06",

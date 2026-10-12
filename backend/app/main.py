@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 import asyncio
 from pathlib import Path
 from app.core.config import settings
-from app.api import kaiten, files, auth, journal, outbox, approval, admin
+from app.api import kaiten, files, auth, journal, outbox, approval, admin, signing_queue
 from app.services.kaiten_service import kaiten_service
 from app.services.file_service import file_service
 
@@ -32,6 +32,9 @@ async def lifespan(app: FastAPI):
         kaiten_service.poll_cards("Проект готов. Согласование начальника отдела")
     )
     background_tasks.add(task_head)
+
+    task_signing_jobs = asyncio.create_task(signing_queue.resume_pending_signing_jobs())
+    background_tasks.add(task_signing_jobs)
 
     print("[Startup] Background tasks started")
 
@@ -69,6 +72,7 @@ app.include_router(kaiten.router)
 app.include_router(files.router)
 app.include_router(journal.router)
 app.include_router(outbox.router)
+app.include_router(signing_queue.router)
 app.include_router(approval.router)
 app.include_router(admin.router)
 

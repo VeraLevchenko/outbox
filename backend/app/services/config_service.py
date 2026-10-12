@@ -92,12 +92,17 @@ class ConfigService:
             'reset_yearly': False
         })
 
-    def get_kaiten_username_for_head(self, username: str) -> str:
-        """Получить Kaiten username для учётной записи начальника."""
+    def get_kaiten_usernames_for_head(self, username: str) -> list[str]:
+        """Получить логины Kaiten начальника и его заместителя."""
         if self._head_users_cache is None:
             config = self._load_json(self.head_users_file)
             self._head_users_cache = config.get("users", {})
-        return self._head_users_cache.get(username, username)
+        configured = self._head_users_cache.get(username, username)
+        return configured if isinstance(configured, list) else [configured]
+
+    def get_kaiten_username_for_head(self, username: str) -> str:
+        """Получить основной Kaiten username для обратной совместимости."""
+        return self.get_kaiten_usernames_for_head(username)[0]
 
     def reload_configs(self):
         """Перезагрузить конфигурации из файлов (для быстрых изменений)"""

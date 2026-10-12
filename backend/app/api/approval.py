@@ -20,6 +20,7 @@ class ApprovalSignatureRequest(BaseModel):
     signature: str
     thumbprint: str
     cn: str
+    target_column: str = "На подпись"
 
 
 def _signature_name(file_name: str, digest: str) -> str:
@@ -102,6 +103,10 @@ async def sign_and_forward(
     if current_user.get("role") not in {"head", "deputy_chairman"}:
         raise HTTPException(status_code=403, detail="Согласовывать документ может только начальник отдела")
 
+    allowed_targets = {"На подпись", "согласование с юр. отделом"}
+    if data.target_column not in allowed_targets:
+        raise HTTPException(status_code=400, detail="Недопустимая колонка для согласования")
+
     card, _, content = await _get_document(data.card_id, data.file_name, current_user)
     digest = hashlib.sha256(content).hexdigest()
     signature_name = _signature_name(data.file_name, digest)
@@ -130,13 +135,13 @@ async def sign_and_forward(
 
     moved = await kaiten_service.move_card(
         data.card_id,
-        "На подпись",
-        f"Документ согласован начальником отдела {data.cn}",
+        data.target_column,
+        f"Документ подписан начальником отдела {data.cn}",
     )
     if not moved:
         raise HTTPException(
             status_code=502,
-            detail="Подпись загружена, но карточку не удалось переместить в колонку «На подпись»",
+            detail=f"Подпись загружена, но карточку не удалось переместить в колонку «{data.target_column}»",
         )
 
     return {"status": "success", "signature_name": signature_name, "document_sha256": digest}

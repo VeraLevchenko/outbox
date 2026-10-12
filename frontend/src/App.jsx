@@ -5,6 +5,7 @@ import Journal from './components/Journal';
 import Credentials from './components/Credentials';
 import Login from './components/Login';
 import { kaitenApi, authApi } from './services/api';
+import { preloadCryptoPro } from './services/cryptoPro';
 import './App.css';
 
 const formatDue = (iso) => {
@@ -30,8 +31,30 @@ function App() {
   const [cardId, setCardId] = useState(null);
   const [cards, setCards] = useState([]);
   const [user, setUser] = useState(null);
-  const isDirector = user?.role === 'director' || user?.role === 'acting_chairman';
   const [loading, setLoading] = useState(true);
+  const isDirector = user?.role === 'director' || user?.role === 'acting_chairman';
+
+  useEffect(() => {
+    if (user) preloadCryptoPro().catch(error => console.warn('CryptoPro preload failed:', error));
+  }, [user]);
+
+  useEffect(() => {
+    if (!cardId || cards.length < 2) return undefined;
+    const currentIndex = cards.findIndex(card => card.id === cardId);
+    const nextCard = cards[currentIndex + 1];
+    const nextDocument = nextCard?.files?.find(file =>
+      !file.deleted && file.name?.toLowerCase().endsWith('.docx') && (file.url || file.path)
+    );
+    if (!nextDocument) return undefined;
+    const sourceUrl = nextDocument.url || nextDocument.path;
+    if (!/^https?:\/\//.test(sourceUrl)) return undefined;
+    const prefetch = document.createElement('link');
+    prefetch.rel = 'prefetch';
+    prefetch.href = 'https://docs.google.com/viewer?url=' + encodeURIComponent(sourceUrl) + '&embedded=true';
+    prefetch.as = 'document';
+    document.head.appendChild(prefetch);
+    return () => prefetch.remove();
+  }, [cards, cardId]);
 
   // Проверяем наличие сохраненного пользователя при монтировании
   useEffect(() => {

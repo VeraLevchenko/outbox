@@ -20,4 +20,5 @@ class RegisterResponse(BaseModel):
     docx_preview_url: Optional[str] = None
     sign_url: Optional[str] = None  # URL для подписания документа
     file_id: Optional[str] = None  # ID файла для подписания
+    head_approval_signature_name: Optional[str] = None
     message: str

@@ -88,6 +88,11 @@ class KaitenService:
             column_id = settings.KAITEN_COLUMN_TO_SIGN_ID
         elif column_name == "Проект готов. Согласование начальника отдела":
             column_id = settings.KAITEN_COLUMN_HEAD_REVIEW_ID
+        elif column_name == "согласование с юр. отделом":
+            column_id = settings.KAITEN_COLUMN_LEGAL_REVIEW_ID
+
+        if not column_id:
+            column_id = await self.find_column_id(column_name)
 
         if not column_id:
             print(f"Unknown column name: {column_name}")
@@ -145,10 +150,15 @@ class KaitenService:
             column_id = settings.KAITEN_COLUMN_OUTBOX_ID
         elif target_column == "Проект готов. Согласование начальника отдела":
             column_id = settings.KAITEN_COLUMN_HEAD_REVIEW_ID
+        elif target_column == "согласование с юр. отделом":
+            column_id = settings.KAITEN_COLUMN_LEGAL_REVIEW_ID
         elif target_column == "На доработку":
             column_id = settings.KAITEN_COLUMN_REWORK_ID
         elif target_column == "На подпись Кирова 71":
             column_id = settings.KAITEN_COLUMN_KIROV_71_ID
+
+        if not column_id:
+            column_id = await self.find_column_id(target_column)
 
         if not column_id:
             print(f"Unknown target column: {target_column}")
@@ -280,10 +290,13 @@ class KaitenService:
         """Проверить, что пользователь является ответственным (type=2)."""
         if members is None:
             members = await self.get_card_members(card_id)
-        normalized = config_service.get_kaiten_username_for_head(username).strip().lower()
+        allowed_usernames = {
+            item.strip().lower()
+            for item in config_service.get_kaiten_usernames_for_head(username)
+        }
         return any(
             member.get("type") == 2 and
-            (member.get("username") or "").strip().lower() == normalized
+            (member.get("username") or "").strip().lower() in allowed_usernames
             for member in members
         )
 

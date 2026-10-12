@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { outboxApi } from '../services/api';
+import { getPreferredCertificate, preloadCryptoPro, setPreferredCertificate } from '../services/cryptoPro';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, onSuccess, approvalMode = false, sourceFileName }) => {
+const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, headApprovalSignatureName, onSuccess, approvalMode = false, approvalTarget = 'На подпись', sourceFileName }) => {
   const [certificates, setCertificates] = useState([]);
   const [selectedCert, setSelectedCert] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-
   useEffect(() => {
     if (isOpen) {
       initPlugin();
@@ -16,43 +16,19 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
   }, [isOpen]);
 
   const initPlugin = async () => {
-    setStatus('Инициализация плагина КриптоПро...');
+    setStatus('Подготовка КриптоПро...');
+    setError('');
     setLoading(true);
-
     try {
-      if (typeof cadesplugin === 'undefined') {
-        throw new Error('Плагин КриптоПро не найден. Установите с https://www.cryptopro.ru/products/cades/plugin');
-      }
-
-      // Ожидание инициализации плагина
-      let pluginReady = false;
-      let attempts = 0;
-      const maxAttempts = 30;
-
-      while (!pluginReady && attempts < maxAttempts) {
-        try {
-          attempts++;
-          const testAbout = await cadesplugin.CreateObjectAsync("CAdESCOM.About");
-          pluginReady = true;
-
-          setStatus('Плагин активен. Загрузка сертификатов...');
-          await loadCertificates();
-
-        } catch (err) {
-          if (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            throw err;
-          }
-        }
-      }
-
-      if (!pluginReady) {
-        throw new Error('Не удалось инициализировать плагин за 30 секунд');
-      }
-
+      const certList = await preloadCryptoPro();
+      setCertificates(certList);
+      const preferred = getPreferredCertificate();
+      const savedCert = certList.find(cert => cert.thumbprint === preferred) || null;
+      setSelectedCert(savedCert);
+      setStatus(savedCert ? 'Сертификат подготовлен' : 'Выберите сертификат для подписания');
     } catch (err) {
       setError(err.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -199,17 +175,19 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
       if (approvalMode) {
         await outboxApi.signAndForward({
           card_id: cardId, file_name: sourceFileName, signature,
-          thumbprint: selectedCert.thumbprint, cn: selectedCert.cn
+          thumbprint: selectedCert.thumbprint, cn: selectedCert.cn,
+          target_column: approvalTarget
         });
       } else {
         await outboxApi.uploadClientSignature({
           file_id: fileId, signature, thumbprint: selectedCert.thumbprint, cn: selectedCert.cn,
           card_id: cardId, outgoing_no: outgoingNo, formatted_number: formattedNumber,
-          outgoing_date: outgoingDate, to_whom: toWhom, executor: executor
+          outgoing_date: outgoingDate, to_whom: toWhom, executor: executor,
+          head_approval_signature_name: headApprovalSignatureName
         });
       }
 
-      setStatus(approvalMode ? '✅ Документ согласован и направлен на подпись' : '✅ Подпись успешно создана!');
+      setStatus(approvalMode ? `✅ DOCX подписан, карточка перемещена: ` + approvalTarget : '✅ Подпись успешно создана!');
       setLoading(false);
 
       // Уведомляем родительский компонент
@@ -303,6 +281,7 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
               onChange={(e) => {
                 const cert = certificates.find(c => c.thumbprint === e.target.value);
                 setSelectedCert(cert);
+                setPreferredCertificate(cert?.thumbprint || '');
               }}
               style={{
                 width: '100%',

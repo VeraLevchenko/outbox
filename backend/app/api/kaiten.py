@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Optional
 from pydantic import BaseModel
@@ -29,22 +31,33 @@ async def get_cards(current_user: dict = Depends(get_current_user)) -> List[Dict
         # Роль берём только из проверенного токена, а не из параметра браузера
         role = current_user.get("role")
         if role in {"director", "acting_chairman"}:
-            column_name = "На подпись"
+            column_names = ["На подпись"]
         elif role in {"head", "deputy_chairman"}:
-            column_name = "Проект готов. Согласование начальника отдела"
+            column_names = ["Проект готов. Согласование начальника отдела"]
+            if current_user.get("username") in {"svilenok", "lazareva"}:
+                column_names.append("согласование с юр. отделом")
         else:
             raise HTTPException(status_code=400, detail="Invalid role")
 
-        # Получаем карточки из Kaiten
-        cards = await kaiten_service.get_cards_from_column(column_name)
+        # Получаем карточки из нужных колонок параллельно и убираем дубли.
+        cards_by_column = await asyncio.gather(*(
+            kaiten_service.get_cards_from_column(column_name)
+            for column_name in column_names
+        ))
+        cards = list({card["id"]: card for group in cards_by_column for card in group}.values())
 
         # Начальник видит только карточки, где он назначен ответственным
         if role == "head":
-            visible_cards = []
-            for card in cards:
-                if await kaiten_service.is_responsible(card["id"], current_user["username"], card.get("members")):
-                    visible_cards.append(card)
-            cards = visible_cards
+            semaphore = asyncio.Semaphore(8)
+
+            async def is_visible(card):
+                async with semaphore:
+                    return await kaiten_service.is_responsible(
+                        card["id"], current_user["username"], card.get("members")
+                    )
+
+            visibility = await asyncio.gather(*(is_visible(card) for card in cards))
+            cards = [card for card, visible in zip(cards, visibility) if visible]
 
         return cards
     except HTTPException:

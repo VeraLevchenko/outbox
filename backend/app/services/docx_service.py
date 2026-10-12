@@ -192,10 +192,10 @@ class DocxService:
                 'valid_to': '30.10.2026',
             },
             'default': {
-                'serial': '5C6BE147FA657D807EF3A907DFB53553',
+                'serial': 'D780A54443F30206FC224EE53327B0399B29578F',
                 'owner': 'Левченко Вера Сергеевна',
-                'valid_from': '16.07.2025',
-                'valid_to': '09.10.2026',
+                'valid_from': '24.02.2026',
+                'valid_to': '20.05.2027',
             }
         }
         username = certificate_data.get('username', 'default') if certificate_data else 'default'

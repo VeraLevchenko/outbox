@@ -17,6 +17,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   const [registrationResult, setRegistrationResult] = useState(null);
   const [showSigningModal, setShowSigningModal] = useState(false);
   const [showApprovalSigning, setShowApprovalSigning] = useState(false);
+  const [approvalTarget, setApprovalTarget] = useState('На подпись');
   const [approvalStatus, setApprovalStatus] = useState(null);
   const [approvalLoading, setApprovalLoading] = useState(false);
   const [approvalVerification, setApprovalVerification] = useState(null);
@@ -126,11 +127,12 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
   }, [cardId, selectedFile, userRole, approvalStatus?.signed, approvalStatus?.signature_name]);
 
 
-  const handleApproveAndForward = () => {
+  const handleApproveAndForward = (targetColumn = 'На подпись') => {
     if (!selectedFile?.name?.toLowerCase().endsWith('.docx')) {
       alert('Для согласования выберите DOCX документ.');
       return;
     }
+    setApprovalTarget(targetColumn);
     setShowApprovalSigning(true);
   };
 
@@ -337,8 +339,11 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
 
         {isHead && (
           <div style={{ padding: '16px', background: '#ffffff', borderBottom: '2px solid #e5e7eb' }}>
-            <button onClick={handleApproveAndForward} style={{ width: '100%', padding: '12px 16px', background: '#4b5563', color: 'white', border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+            <button onClick={() => handleApproveAndForward('На подпись')} style={{ width: '100%', padding: '12px 16px', background: '#4b5563', color: 'white', border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
               Согласовать и направить на подпись
+            </button>
+            <button onClick={() => handleApproveAndForward('согласование с юр. отделом')} style={{ width: '100%', marginTop: '8px', padding: '12px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+              На согласование в юр. отдел
             </button>
             <button onClick={handleReturn} style={{ width: '100%', marginTop: '8px', padding: '10px 16px', background: '#ffffff', color: '#dc2626', border: '2px solid #dc2626', borderRadius: '4px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
               Вернуть исполнителю
@@ -576,11 +581,12 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
           onClose={() => setShowApprovalSigning(false)}
           cardId={cardId}
           approvalMode={true}
+          approvalTarget={approvalTarget}
           sourceFileName={selectedFile.name}
           onSuccess={async () => {
             setShowApprovalSigning(false);
             if (onCardsUpdate) await onCardsUpdate();
-            alert('✅ DOCX подписан, подпись загружена в Kaiten, карточка направлена директору');
+            alert(`✅ DOCX подписан, подпись загружена в Kaiten, карточка перемещена: ` + approvalTarget);
           }}
         />
       )}
@@ -598,6 +604,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
           outgoingDate={registrationResult.outgoing_date}
           toWhom={cardTitle}
           executor={registrationResult.executor}
+          headApprovalSignatureName={registrationResult.head_approval_signature_name}
           onSuccess={async () => {
             setShowSigningModal(false);
 

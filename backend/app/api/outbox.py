@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 from datetime import date, datetime
@@ -8,6 +8,7 @@ import io
 import hashlib
 import uuid
 import base64
+import json
 
 from app.models.database import SessionLocal
 from app.schemas.outbox_schemas import RegisterRequest, RegisterResponse
@@ -25,6 +26,39 @@ router = APIRouter(prefix="/api/outbox", tags=["outbox"])
 # Директория для временных зарегистрированных файлов
 TEMP_FILES_DIR = Path(__file__).parent.parent.parent / "temp_files"
 TEMP_FILES_DIR.mkdir(exist_ok=True)
+SIGNING_JOBS_DIR = TEMP_FILES_DIR / "signing_jobs"
+SIGNING_JOBS_DIR.mkdir(exist_ok=True)
+
+
+def _job_path(job_id: str) -> Path:
+    return SIGNING_JOBS_DIR / f"{job_id}.json"
+
+
+def _write_job(job_id: str, payload: dict) -> None:
+    path = _job_path(job_id)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    temporary.replace(path)
+
+
+def _read_job(job_id: str) -> dict:
+    path = _job_path(job_id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Фоновая задача не найдена")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _max_queued_outgoing_number() -> int:
+    maximum = 0
+    for path in SIGNING_JOBS_DIR.glob("*.json"):
+        try:
+            job = json.loads(path.read_text(encoding="utf-8"))
+            if job.get("status") in {"pending", "processing"}:
+                maximum = max(maximum, int(job["data"]["outgoing_no"]))
+        except (OSError, ValueError, KeyError, json.JSONDecodeError):
+            continue
+    return maximum
+
 
 
 def get_db():
@@ -110,7 +144,7 @@ async def prepare_registration(
         # Сквозная нумерация независимо от исполнителя - НЕ фильтруем по executor
 
         # Получаем максимальный номер
-        max_no = query.scalar()
+        max_no = max(query.scalar() or 0, _max_queued_outgoing_number())
         next_number = (max_no or (start_number - 1)) + 1
 
         # Форматируем номер согласно правилу (например, 42-10)
@@ -162,10 +196,11 @@ async def prepare_registration(
         # Проверяем подпись начальника именно для этой версии DOCX
         document_digest = hashlib.sha256(docx_bytes).hexdigest()
         approval_name = f"СОГЛАСОВАНО_{document_digest[:12]}_{Path(request.selected_file_name).name}.sig"
-        if not request.skip_head_approval and not any(
-            not item.get("deleted") and item.get("name") == approval_name
-            for item in card_files
-        ):
+        approval_file = next((
+            item for item in card_files
+            if not item.get("deleted") and item.get("name") == approval_name
+        ), None)
+        if not request.skip_head_approval and not approval_file:
             raise HTTPException(
                 status_code=400,
                 detail="Для выбранной версии DOCX отсутствует подпись начальника отдела",
@@ -219,6 +254,14 @@ async def prepare_registration(
         with open(docx_file_path, 'wb') as f:
             f.write(modified_docx_with_stamp)
 
+        # Для подтверждения согласования сохраняем неизменённый DOCX,
+        # байты которого подписал начальник отдела.
+        approval_docx_file_path = None
+        if approval_file:
+            approval_docx_filename = Path(request.selected_file_name).name
+            approval_docx_file_path = TEMP_FILES_DIR / f"{file_id}_approved_{approval_docx_filename}"
+            approval_docx_file_path.write_bytes(docx_bytes)
+
         # Сохраняем PDF (без подписи - будет подписан на клиенте)
         pdf_filename = f"{safe_number}_{safe_date}.pdf"
         pdf_file_path = TEMP_FILES_DIR / f"{file_id}_{pdf_filename}"
@@ -229,6 +272,8 @@ async def prepare_registration(
 
         print(f"[Outbox] Files saved:")
         print(f"  - DOCX: {docx_file_path}")
+        if approval_docx_file_path:
+            print(f"  - Approved source DOCX: {approval_docx_file_path}")
         print(f"  - PDF: {pdf_file_path}")
         print(f"  - SIG: будет создана на клиенте")
 
@@ -247,6 +292,7 @@ async def prepare_registration(
             docx_preview_url=download_url,
             sign_url=sign_url,
             file_id=file_id,
+            head_approval_signature_name=approval_name if approval_file else None,
             message=f"Документ готов к подписанию. Номер: {formatted_number} от {outgoing_date}"
         )
 
@@ -292,10 +338,10 @@ class ClientSignatureUpload(BaseModel):
     outgoing_date: str  # Дата в формате ДД.ММ.ГГГГ
     to_whom: str  # Кому (из названия карточки)
     executor: str  # Исполнитель
+    head_approval_signature_name: str | None = None
 
 
-@router.post("/upload-client-signature")
-async def upload_client_signature(
+async def _process_client_signature(
     data: ClientSignatureUpload,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -335,6 +381,18 @@ async def upload_client_signature(
             )
 
         pdf_file_path = matching_files[0]
+
+        matching_docx_files = [
+            path for path in TEMP_FILES_DIR.glob(f"{data.file_id}_*.docx")
+            if not path.name.startswith(f"{data.file_id}_approved_")
+        ]
+        if not matching_docx_files:
+            raise HTTPException(
+                status_code=404,
+                detail=f"DOCX файл с ID {data.file_id} не найден"
+            )
+
+        docx_file_path = matching_docx_files[0]
 
         # Создаём .sig файл рядом с PDF
         sig_file_path = pdf_file_path.with_suffix('.pdf.sig')
@@ -382,37 +440,69 @@ PDF файл: {pdf_file_path.name}
         kaiten_url = f"https://outbox.kaiten.ru/space/397084/card/{data.card_id}"
 
         # 2. Читаем файлы
-        print(f"[Outbox] Reading PDF and SIG files...")
+        print(f"[Outbox] Reading DOCX, PDF and SIG files...")
+        docx_bytes = docx_file_path.read_bytes()
         pdf_bytes = pdf_file_path.read_bytes()
 
         # 3. Получаем приложения (все файлы из карточки, кроме основного DOCX)
         print(f"[Outbox] Getting attachments from Kaiten...")
         attachments_bytes = None
+        downloaded_attachments = []
         card_files = card.get('files', [])
 
-        # Фильтруем файлы: исключаем основной DOCX, который был зарегистрирован
-        # Это определяется по имени файла из registrationResult
-        # Но нам нужно знать, какой файл был выбран - это сложно определить здесь
-        # Поэтому возьмём все файлы, кроме .docx файлов (так как основной уже в PDF)
-        attachment_files = [f for f in card_files if not f.get('name', '').lower().endswith('.docx')]
+        active_files = [item for item in card_files if not item.get("deleted")]
+        approval_signature = next((
+            item for item in active_files
+            if data.head_approval_signature_name
+            and item.get("name") == data.head_approval_signature_name
+        ), None)
+        has_head_approval = approval_signature is not None
+        approval_docx_files = list(TEMP_FILES_DIR.glob(f"{data.file_id}_approved_*.docx"))
+        if has_head_approval and not approval_docx_files:
+            raise HTTPException(
+                status_code=404,
+                detail="Исходный DOCX, подписанный начальником отдела, не найден"
+            )
+        approval_docx_file_path = approval_docx_files[0] if has_head_approval else None
+        approval_docx_bytes = approval_docx_file_path.read_bytes() if approval_docx_file_path else None
+        approval_docx_filename = (
+            approval_docx_file_path.name.replace(f"{data.file_id}_approved_", "")
+            if approval_docx_file_path else None
+        )
 
-        if attachment_files:
-            print(f"[Outbox] Found {len(attachment_files)} attachments")
-            # Скачиваем и упаковываем в ZIP архив
+        def is_head_signature(file_name: str) -> bool:
+            return file_name.startswith("СОГЛАСОВАНО_") and file_name.endswith(".docx.sig")
+
+        # Устаревшие или пропущенные подписи начальника не сохраняем как приложения.
+        attachment_files = [
+            item for item in active_files
+            if not item.get("name", "").lower().endswith(".docx")
+            and (
+                not is_head_signature(item.get("name", ""))
+                or item is approval_signature
+            )
+        ]
+
+        docx_filename = docx_file_path.name.replace(f"{data.file_id}_", "")
+        if has_head_approval or attachment_files:
             import zipfile
             zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                for file_info in attachment_files:
-                    file_name = file_info.get('name', 'unknown')
-                    file_url = file_info.get('url') or file_info.get('path')
-                    if file_url:
-                        try:
-                            # Скачиваем файл
-                            file_bytes = await file_service.download_file(file_url)
-                            zip_file.writestr(file_name, file_bytes)
-                            print(f"  - Added: {file_name}")
-                        except Exception as e:
-                            print(f"  - Failed to download {file_name}: {e}")
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                if has_head_approval:
+                    zip_file.writestr(approval_docx_filename, approval_docx_bytes)
+                if attachment_files:
+                    print(f"[Outbox] Found {len(attachment_files)} attachments")
+                    for file_info in attachment_files:
+                        file_name = file_info.get("name", "unknown")
+                        file_url = file_info.get("url") or file_info.get("path")
+                        if file_url:
+                            try:
+                                file_bytes = await file_service.download_file(file_url)
+                                downloaded_attachments.append((file_name, file_bytes))
+                                zip_file.writestr(file_name, file_bytes)
+                                print(f"  - Added: {file_name}")
+                            except Exception as e:
+                                print(f"  - Failed to download {file_name}: {e}")
 
             attachments_bytes = zip_buffer.getvalue()
             print(f"[Outbox] Attachments archive size: {len(attachments_bytes)} bytes")
@@ -438,6 +528,12 @@ PDF файл: {pdf_file_path.name}
         pdf_save_path.write_bytes(pdf_bytes)
         print(f"[Outbox] Saved PDF: {pdf_save_path}")
 
+        # Word сохраняем только как подтверждение согласования начальником отдела.
+        if has_head_approval:
+            docx_save_path = outgoing_folder / approval_docx_filename
+            docx_save_path.write_bytes(approval_docx_bytes)
+            print(f"[Outbox] Saved approved DOCX: {docx_save_path}")
+
         # Сохраняем SIG
         sig_filename = pdf_filename.replace('.pdf', '.pdf.sig')
         sig_save_path = outgoing_folder / sig_filename
@@ -445,20 +541,15 @@ PDF файл: {pdf_file_path.name}
         print(f"[Outbox] Saved SIG: {sig_save_path}")
 
         # Сохраняем приложения (отдельные файлы, а не архив)
-        if attachment_files:
-            print(f"[Outbox] Saving {len(attachment_files)} attachments to folder...")
-            for file_info in attachment_files:
-                file_name = file_info.get('name', 'unknown')
-                file_url = file_info.get('url') or file_info.get('path')
-                if file_url:
-                    try:
-                        # Скачиваем файл (повторно, если нужно)
-                        file_bytes = await file_service.download_file(file_url)
-                        attachment_save_path = outgoing_folder / file_name
-                        attachment_save_path.write_bytes(file_bytes)
-                        print(f"  - Saved: {file_name}")
-                    except Exception as e:
-                        print(f"  - Failed to save {file_name}: {e}")
+        if downloaded_attachments:
+            print(f"[Outbox] Saving {len(downloaded_attachments)} attachments to folder...")
+            for file_name, file_bytes in downloaded_attachments:
+                try:
+                    attachment_save_path = outgoing_folder / file_name
+                    attachment_save_path.write_bytes(file_bytes)
+                    print(f"  - Saved: {file_name}")
+                except Exception as e:
+                    print(f"  - Failed to save {file_name}: {e}")
 
         print(f"[Outbox] All files saved to: {outgoing_folder}")
 
