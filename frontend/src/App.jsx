@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import IncomingFiles from './components/IncomingFiles';
 import OutgoingFiles from './components/OutgoingFiles';
+import ServerProjects from './components/ServerProjects';
 import Journal from './components/Journal';
 import Credentials from './components/Credentials';
 import Login from './components/Login';
-import { kaitenApi, authApi } from './services/api';
+import { kaitenApi, authApi, serverProjectsApi } from './services/api';
 import { preloadCryptoPro } from './services/cryptoPro';
 import './App.css';
 
@@ -31,6 +32,8 @@ function App() {
   const [cardId, setCardId] = useState(null);
   const [cards, setCards] = useState([]);
   const [user, setUser] = useState(null);
+  const [sourceMode, setSourceMode] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [loading, setLoading] = useState(true);
   const isDirector = user?.role === 'director' || user?.role === 'acting_chairman';
 
@@ -39,7 +42,7 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    if (!cardId || cards.length < 2) return undefined;
+    if (sourceMode !== 'kaiten' || !cardId || cards.length < 2) return undefined;
     const currentIndex = cards.findIndex(card => card.id === cardId);
     const nextCard = cards[currentIndex + 1];
     const nextDocument = nextCard?.files?.find(file =>
@@ -54,7 +57,7 @@ function App() {
     prefetch.as = 'document';
     document.head.appendChild(prefetch);
     return () => prefetch.remove();
-  }, [cards, cardId]);
+  }, [cards, cardId, sourceMode]);
 
   // Проверяем наличие сохраненного пользователя при монтировании
   useEffect(() => {
@@ -65,7 +68,13 @@ function App() {
       try {
         const userData = JSON.parse(savedUser);
         setUser(userData);
-        loadCards();
+        const savedMode = sessionStorage.getItem('sourceMode');
+        if (savedMode === 'kaiten' || savedMode === 'server') {
+          setSourceMode(savedMode);
+          loadCards(savedMode);
+        } else {
+          setLoading(false);
+        }
       } catch (e) {
         console.error('Error parsing saved user:', e);
         authApi.logout();
@@ -76,33 +85,48 @@ function App() {
     }
   }, []);
 
-  const loadCards = async () => {
+  const loadCards = async (mode = sourceMode) => {
     try {
       setLoading(true);
-      const response = await kaitenApi.getCards();
+      setLoadError(null);
+      const response = mode === 'server' ? await serverProjectsApi.getProjects() : await kaitenApi.getCards();
       const fetchedCards = response.data || [];
       setCards(fetchedCards);
 
       // Автоматически выбрать первую карточку
       if (fetchedCards.length > 0) {
-        setCardId(fetchedCards[0].id);
+        setCardId(mode === 'server' ? fetchedCards[0].name : fetchedCards[0].id);
+      } else {
+        setCardId(null);
       }
     } catch (error) {
       console.error('Ошибка загрузки карточек:', error);
       setCards([]);
+      setCardId(null);
+      setLoadError(error.response?.data?.detail || error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLoginSuccess = (userData) => {
+  const handleLoginSuccess = (userData, mode) => {
     setUser(userData);
-    loadCards();
+    setSourceMode(mode);
+    loadCards(mode);
+  };
+
+  const chooseSource = (mode) => {
+    sessionStorage.setItem('sourceMode', mode);
+    setSourceMode(mode);
+    loadCards(mode);
   };
 
   const handleLogout = () => {
     authApi.logout();
+    sessionStorage.removeItem('sourceMode');
     setUser(null);
+    setSourceMode(null);
+    setLoadError(null);
     setCardId(null);
     setCards([]);
     setMainTab('cards');
@@ -130,6 +154,16 @@ function App() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
+  if (!sourceMode) {
+    return (
+      <div style={{ padding: '48px', textAlign: 'center' }}>
+        <h2>Выберите источник писем</h2>
+        <button onClick={() => chooseSource('kaiten')} style={{ margin: '8px', padding: '12px 20px' }}>С КАЙТЕН</button>
+        <button onClick={() => chooseSource('server')} style={{ margin: '8px', padding: '12px 20px' }}>С сервера</button>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {/* Заголовок */}
@@ -137,21 +171,20 @@ function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <h1>Outbox</h1>
           <div className="card-selector">
-            <label>Карточка: </label>
+            <label>{sourceMode === 'server' ? 'Проект: ' : 'Карточка: '}</label>
             {cards.length > 0 ? (
               <select
                 value={cardId || ''}
-                onChange={(e) => setCardId(Number(e.target.value))}
+                onChange={(e) => setCardId(sourceMode === 'server' ? e.target.value : Number(e.target.value))}
               >
                 {cards.map((card) => (
-                  <option key={card.id} value={card.id}>
-                    {formatDueLabel(card.due_date)}
-                    {card.properties?.id_228499 || card.id} — {card.title}
+                  <option key={sourceMode === 'server' ? card.name : card.id} value={sourceMode === 'server' ? card.name : card.id}>
+                    {sourceMode === 'server' ? card.name : <>{formatDueLabel(card.due_date)}{card.properties?.id_228499 || card.id} — {card.title}</>}
                   </option>
                 ))}
               </select>
             ) : (
-              <span>Нет карточек</span>
+              <span>{loadError || (sourceMode === 'server' ? 'Нет проектов на подпись' : 'Нет карточек')}</span>
             )}
           </div>
         </div>
@@ -193,7 +226,7 @@ function App() {
           className={`tab ${mainTab === 'cards' ? 'active' : ''}`}
           onClick={() => setMainTab('cards')}
         >
-          Карточки
+          {sourceMode === 'server' ? 'Проекты' : 'Карточки'}
         </button>
         {isDirector && (
         <button
@@ -211,7 +244,7 @@ function App() {
       </div>
 
       {/* Подтабы для карточек */}
-      {mainTab === 'cards' && (
+      {mainTab === 'cards' && sourceMode === 'kaiten' && (
         <div className="tabs" style={{ background: '#f9fafb', borderTop: '1px solid #e5e7eb' }}>
           <button
             className={`tab ${subTab === 'incoming' ? 'active' : ''}`}
@@ -230,8 +263,9 @@ function App() {
 
       {/* Контент */}
       <div className="content">
-        {mainTab === 'cards' && subTab === 'incoming' && <IncomingFiles cardId={cardId} />}
-        {mainTab === 'cards' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} card={cards.find(card => card.id === cardId)} onCardsUpdate={loadCards} userRole={user?.role} />}
+        {mainTab === 'cards' && sourceMode === 'kaiten' && subTab === 'incoming' && <IncomingFiles cardId={cardId} />}
+        {mainTab === 'cards' && sourceMode === 'kaiten' && subTab === 'outgoing' && <OutgoingFiles cardId={cardId} card={cards.find(card => card.id === cardId)} onCardsUpdate={() => loadCards('kaiten')} userRole={user?.role} />}
+        {mainTab === 'cards' && sourceMode === 'server' && <ServerProjects folder={cardId} project={cards.find(card => card.name === cardId)} onProjectsUpdate={() => loadCards('server')} userRole={user?.role} />}
         {user.username === 'levchenko' && mainTab === 'credentials' && <Credentials />}
         {isDirector && mainTab === 'journal' && <Journal />}
       </div>

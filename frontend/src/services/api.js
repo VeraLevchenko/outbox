@@ -67,6 +67,16 @@ export const kaitenApi = {
   getCardExecutor: (cardId) => api.get(`/api/kaiten/cards/${cardId}/executor`),
 };
 
+export const serverProjectsApi = {
+  getProjects: () => api.get('/api/server-projects'),
+  getFiles: (folder) => api.get(`/api/server-projects/${encodeURIComponent(folder)}/files`),
+  downloadFile: (folder, filename) => api.get(`/api/server-projects/${encodeURIComponent(folder)}/files/${encodeURIComponent(filename)}`, { responseType: 'blob' }),
+  previewDocx: (folder, filename) => api.get(`/api/server-projects/${encodeURIComponent(folder)}/preview/${encodeURIComponent(filename)}`, { responseType: 'blob' }),
+  getApprovalStatus: (folder, filename) => api.get(`/api/server-projects/${encodeURIComponent(folder)}/approval/${encodeURIComponent(filename)}`),
+  prepare: (data) => api.post('/api/server-projects/prepare', data),
+  sign: (data) => api.post('/api/server-projects/sign', data),
+};
+
 // API методы для файлов
 export const filesApi = {
   getIncomingFiles: (cardId) => api.get(`/api/files/incoming/${cardId}`),

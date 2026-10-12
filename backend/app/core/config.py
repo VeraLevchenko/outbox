@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     # File Storage
     INCOMING_FILES_PATH: str = "/mnt/doc/Входящие"
     OUTGOING_FILES_PATH: str = "/mnt/doc/Исходящие"
+    PROJECTS_OUTGOING_FILES_PATH: str | None = None
 
     class Config:
         env_file = ".env"

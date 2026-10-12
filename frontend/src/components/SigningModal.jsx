@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { outboxApi } from '../services/api';
+import { outboxApi, serverProjectsApi } from '../services/api';
 import { getPreferredCertificate, preloadCryptoPro, setPreferredCertificate } from '../services/cryptoPro';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, headApprovalSignatureName, onSuccess, approvalMode = false, approvalTarget = 'На подпись', sourceFileName }) => {
+const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, formattedNumber, outgoingDate, toWhom, executor, headApprovalSignatureName, onSuccess, approvalMode = false, approvalTarget = 'На подпись', sourceFileName, serverMode = false }) => {
   const [certificates, setCertificates] = useState([]);
   const [selectedCert, setSelectedCert] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
     if (isOpen) {
+      setCompleted(false);
       initPlugin();
     }
   }, [isOpen]);
@@ -112,6 +114,7 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
     try {
       // 1. Получаем неизменённые байты подписываемого документа
       let pdfArrayBuffer;
+      let savedResult = null;
       if (approvalMode) {
         const response = await outboxApi.getApprovalDocument(cardId, sourceFileName);
         pdfArrayBuffer = response.data;
@@ -178,6 +181,11 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
           thumbprint: selectedCert.thumbprint, cn: selectedCert.cn,
           target_column: approvalTarget
         });
+      } else if (serverMode) {
+        const response = await serverProjectsApi.sign({
+          file_id: fileId, signature, thumbprint: selectedCert.thumbprint, cn: selectedCert.cn
+        });
+        savedResult = response.data;
       } else {
         await outboxApi.uploadClientSignature({
           file_id: fileId, signature, thumbprint: selectedCert.thumbprint, cn: selectedCert.cn,
@@ -188,12 +196,13 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
       }
 
       setStatus(approvalMode ? `✅ DOCX подписан, карточка перемещена: ` + approvalTarget : '✅ Подпись успешно создана!');
+      setCompleted(true);
       setLoading(false);
 
       // Уведомляем родительский компонент
       if (onSuccess) {
         setTimeout(() => {
-          onSuccess();
+          onSuccess(savedResult);
         }, 1500);
       }
 
@@ -306,17 +315,17 @@ const SigningModal = ({ isOpen, onClose, fileId, pdfFile, cardId, outgoingNo, fo
         <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
           <button
             onClick={handleSign}
-            disabled={!selectedCert || loading}
+            disabled={!selectedCert || loading || completed}
             style={{
               flex: 1,
               padding: '12px 24px',
-              background: (!selectedCert || loading) ? '#9ca3af' : '#4b5563',
+              background: (!selectedCert || loading || completed) ? '#9ca3af' : '#4b5563',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
               fontSize: '14px',
               fontWeight: '600',
-              cursor: (!selectedCert || loading) ? 'not-allowed' : 'pointer'
+              cursor: (!selectedCert || loading || completed) ? 'not-allowed' : 'pointer'
             }}
           >
             {loading ? 'Подписание...' : approvalMode ? '🔏 Согласовать и направить' : '🔏 Подписать'}
