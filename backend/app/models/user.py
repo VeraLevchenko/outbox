@@ -10,7 +10,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(String, nullable=False)  # "director" или "head"
+    role = Column(String, nullable=False)  # director, head, journal и другие роли
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self):

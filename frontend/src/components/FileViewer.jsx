@@ -1,11 +1,37 @@
 import React, { useState, useEffect } from 'react';
+import { filesApi } from '../services/api';
 
-const FileViewer = ({ fileUrl, fileName }) => {
+const FileViewer = ({ fileUrl, fileName, cardId }) => {
   const [retryKey, setRetryKey] = useState(0);
+  const [preview, setPreview] = useState({ key: null, url: null, error: null });
 
   useEffect(() => {
     setRetryKey(0);
   }, [fileUrl]);
+
+  const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
+  const isOutgoingPreview = cardId && fileUrl && ['docx', 'pdf'].includes(fileExtension);
+  const previewKey = `${cardId}:${fileName}:${fileUrl}:${retryKey}`;
+
+  useEffect(() => {
+    if (!isOutgoingPreview) return undefined;
+    let cancelled = false;
+    let objectUrl = null;
+    setPreview({ key: previewKey, url: null, error: null });
+    filesApi.previewOutgoingFile(cardId, fileName)
+      .then(({ data }) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(data);
+        setPreview({ key: previewKey, url: objectUrl, error: null });
+      })
+      .catch(() => {
+        if (!cancelled) setPreview({ key: previewKey, url: null, error: 'Не удалось загрузить документ для просмотра' });
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [cardId, fileName, fileUrl, retryKey, isOutgoingPreview]);
 
   if (!fileUrl) {
     return (
@@ -16,7 +42,24 @@ const FileViewer = ({ fileUrl, fileName }) => {
   }
 
   const isPublicUrl = fileUrl.startsWith('http://') || fileUrl.startsWith('https://');
-  const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
+
+  if (isOutgoingPreview) {
+    return (
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '10px', background: '#f5f5f5', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+          <span>{fileName}</span>
+          <button onClick={() => setRetryKey(key => key + 1)}>↺ Обновить</button>
+        </div>
+        {preview.key === previewKey && preview.url ? (
+          <iframe src={preview.url} type="application/pdf" title={fileName} style={{ width: '100%', flex: 1, border: 'none' }} />
+        ) : (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+            {(preview.key === previewKey && preview.error) || 'Загрузка документа...'}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (isPublicUrl) {
     const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true&r=${retryKey}`;

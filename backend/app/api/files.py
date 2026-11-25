@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse, Response
+import httpx
 from typing import List
 from pathlib import Path
 from urllib.parse import quote
 from app.services.file_service import file_service
 from app.services.kaiten_service import kaiten_service
+from app.services.pdf_service import pdf_service
+from app.api.auth import get_current_user
 from app.schemas.file_schemas import (
     IncomingFilesResponse,
     OutgoingFilesResponse,
@@ -14,6 +17,38 @@ from app.schemas.file_schemas import (
 )
 
 router = APIRouter(prefix="/api/files", tags=["files"])
+
+
+@router.get("/outgoing/{card_id}/preview/{filename}")
+async def preview_outgoing_file(card_id: int, filename: str, user: dict = Depends(get_current_user)):
+    """Show a Kaiten attachment in Outbox without sending its URL to Google."""
+    card = await kaiten_service.get_card_by_id(card_id)
+    if not card:
+        raise HTTPException(status_code=404, detail="Карточка не найдена")
+
+    file_info = next(
+        (item for item in card.get("files", [])
+         if item.get("name") == filename and not item.get("deleted", False)),
+        None,
+    )
+    if not file_info or not file_info.get("url"):
+        raise HTTPException(status_code=404, detail="Файл не найден в карточке")
+
+    try:
+        content = await file_service.download_file(file_info["url"])
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Не удалось загрузить файл из Kaiten") from exc
+
+    if content.startswith(b"%PDF-"):
+        return Response(content, media_type="application/pdf")
+
+    if filename.lower().endswith(".docx") and content.startswith(b"PK"):
+        try:
+            return Response(pdf_service.convert_docx_to_pdf(content), media_type="application/pdf")
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=f"Не удалось показать DOCX: {exc}") from exc
+
+    raise HTTPException(status_code=415, detail="Формат файла не поддерживается для просмотра")
 
 
 @router.get("/incoming/{card_id}", response_model=IncomingFilesResponse)

@@ -186,10 +186,10 @@ class DocxService:
                 'valid_to': '25.02.2027',
             },
             'mezentseva': {
-                'serial': 'F3E16AEEEF42503B17051E597BDF345EFB901DE1',
+                'serial': 'DB52BA3FE44408DA6F94D3BA5E68BBAE53040AD3',
                 'owner': 'Мезенцева Дарья Витальевна',
-                'valid_from': '06.08.2025',
-                'valid_to': '30.10.2026',
+                'valid_from': '22.10.2026',
+                'valid_to': '15.01.2028',
             },
             'default': {
                 'serial': 'D780A54443F30206FC224EE53327B0399B29578F',

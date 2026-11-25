@@ -28,7 +28,7 @@ def create_users():
             {
                 'username': 'lubimova',
                 'password': 'lubimova123',
-                'role': 'secretar'
+                'role': 'journal'
             },
             {
                 'username': 'mezentseva',

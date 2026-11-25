@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { adminApi } from '../services/api';
 
 const roleLabel = (role) => {
-  const labels = { acting_chairman: 'И.о. председателя', deputy_chairman: 'Заместитель председателя', director: 'Председатель', head: 'Начальник/заместитель' };
+  const labels = { acting_chairman: 'И.о. председателя', deputy_chairman: 'Заместитель председателя', director: 'Председатель', head: 'Начальник/заместитель', journal: 'Журнал' };
   return role.split(',').map(item => labels[item] || item).join(', ');
 };
 

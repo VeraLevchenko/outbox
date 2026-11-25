@@ -84,6 +84,7 @@ export const serverProjectsApi = {
 export const filesApi = {
   getIncomingFiles: (cardId) => api.get(`/api/files/incoming/${cardId}`),
   getOutgoingFiles: (cardId) => api.get(`/api/files/outgoing/${cardId}`),
+  previewOutgoingFile: (cardId, filename) => api.get(`/api/files/outgoing/${cardId}/preview/${encodeURIComponent(filename)}`, { responseType: 'blob' }),
   getAllFiles: (cardId) => api.get(`/api/files/card/${cardId}/all`),
   getViewerUrl: (fileUrl) => api.post('/api/files/viewer', { file_url: fileUrl }),
 };

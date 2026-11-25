@@ -374,6 +374,8 @@ async def reload_configuration(
     Returns:
         Сообщение об успешной перезагрузке
     """
+    if current_user.get("role") == "journal":
+        raise HTTPException(status_code=403, detail="Недостаточно прав для изменения настроек")
     try:
         config_service.reload_configs()
         return {

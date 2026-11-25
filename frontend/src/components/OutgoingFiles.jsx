@@ -572,6 +572,7 @@ const OutgoingFiles = ({ cardId, card, onCardsUpdate, userRole }) => {
         <FileViewer
           fileUrl={selectedFile?.path}
           fileName={selectedFile?.name}
+          cardId={cardId}
         />
       </div>
 

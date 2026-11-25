@@ -68,6 +68,11 @@ function App() {
       try {
         const userData = JSON.parse(savedUser);
         setUser(userData);
+        if (userData.role === 'journal') {
+          setMainTab('journal');
+          setLoading(false);
+          return;
+        }
         const savedMode = sessionStorage.getItem('sourceMode');
         if (savedMode === 'kaiten' || savedMode === 'server') {
           setSourceMode(savedMode);
@@ -111,8 +116,14 @@ function App() {
 
   const handleLoginSuccess = (userData, mode) => {
     setUser(userData);
+    if (userData.role === 'journal') {
+      setMainTab('journal');
+      setSourceMode(null);
+      setLoading(false);
+      return;
+    }
     setSourceMode(mode);
-    loadCards(mode);
+    if (mode) loadCards(mode);
   };
 
   const chooseSource = (mode) => {
@@ -156,6 +167,21 @@ function App() {
   // Если не авторизован - показываем логин
   if (!user) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  if (user.role === 'journal') {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <h1>Outbox</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <span>{user.full_name || user.username} · Журнал</span>
+            <button onClick={handleLogout}>Выйти</button>
+          </div>
+        </header>
+        <div className="content"><Journal /></div>
+      </div>
+    );
   }
 
   if (!sourceMode) {

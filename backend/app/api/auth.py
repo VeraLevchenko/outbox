@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import timedelta
 from app.services.auth_service import auth_service
@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 security = HTTPBearer()
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+async def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """
     Dependency для получения текущего пользователя из JWT токена
 
@@ -46,6 +46,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     allowed_roles = auth_service.get_allowed_roles(user["role"])
     if token_role not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Role is no longer allowed")
+    if token_role == "journal" and not (
+        request.url.path.startswith("/api/journal/") or request.url.path == "/api/auth/me"
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступен только журнал")
     user["role"] = token_role
     user["roles"] = allowed_roles
     return user
